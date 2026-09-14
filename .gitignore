@@ -94,3 +94,11 @@ logs/
 .terraform/
 *.tfstate
 *.tfstate.backup
+
+# -- SQLite local database (runtime artifact — re-created by seed.py) ----------
+*.db
+*.db-shm
+*.db-wal
+
+# -- Temporary server output files (created during local dev/testing) ----------
+*.err
