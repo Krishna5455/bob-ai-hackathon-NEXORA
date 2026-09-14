@@ -1,13 +1,38 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Play, Calendar, User, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
-import { getPatient, getPatientOutcomes, getPatientAdherenceWeekly } from '@/lib/api'
+import {
+  ArrowLeft,
+  Play,
+  Calendar,
+  User,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Sparkles,
+  Brain,
+  CheckCircle2,
+  ShieldCheck,
+  RotateCw,
+} from 'lucide-react'
+import {
+  getPatient,
+  getPatientOutcomes,
+  getPatientAdherenceWeekly,
+  getPatientAIInsight,
+} from '@/lib/api'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { SessionStatusBadge } from '@/components/ui/SessionStatusBadge'
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States'
 import { AdherenceBarChart, OutcomeTrendChart } from '@/components/charts/ClinicalCharts'
-import type { PatientDetail, OutcomePoint, AdherenceWeeklySeries } from '@/types/api'
+import type {
+  PatientDetail,
+  OutcomePoint,
+  AdherenceWeeklySeries,
+  PatientAIInsight,
+} from '@/types/api'
+
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
 type Tab = 'overview' | 'sessions' | 'adherence' | 'outcomes' | 'ai-summary'
@@ -386,20 +411,189 @@ function OutcomesTab({ patientId }: { patientId: string }) {
 }
 
 // ── AI Summary tab ────────────────────────────────────────────────────────────
-function AISummaryTab() {
+function AISummaryTab({ patientId }: { patientId: string }) {
+  const { data: insight, isLoading, isError, refetch, isFetching } = useQuery<PatientAIInsight>({
+    queryKey: ['patient-ai-insight', patientId],
+    queryFn: () => getPatientAIInsight(patientId),
+    enabled: false, // On-demand generation via button
+  })
+
   return (
-    <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-      <p className="mb-2 font-semibold">IBM watsonx.ai Clinical Summary — Phase 4</p>
-      <p className="mb-3">
-        AI-generated patient summaries powered by IBM watsonx.ai Granite will be available in Phase 4.
-        Summaries will be generated from session, adherence, and outcome data and presented as{' '}
-        <strong>decision support only</strong> — not as diagnosis or treatment recommendations.
-        The clinician remains the decision maker at all times.
-      </p>
-      <p className="text-xs text-amber-600">
-        ⚠ AI output will never diagnose medical conditions, prescribe treatment, or recommend
-        changing device parameters.
-      </p>
+    <div className="space-y-6">
+      {/* Header action bar */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+            <Brain className="h-6 w-6" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">
+              IBM watsonx.ai Clinical Intelligence Layer
+            </h2>
+            <p className="text-xs text-slate-500">
+              Automated pattern synthesis and clinical decision support for rehabilitation monitoring
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => refetch()}
+          disabled={isLoading || isFetching}
+          className="flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-purple-700 active:scale-[0.99] transition-all disabled:opacity-50"
+        >
+          {isLoading || isFetching ? (
+            <>
+              <RotateCw className="h-4 w-4 animate-spin" />
+              Synthesizing Patient Signals...
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" />
+              {insight ? 'Re-Generate AI Insight' : 'Generate AI Clinical Insight'}
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Initial state before generation */}
+      {!insight && !isLoading && !isFetching && !isError && (
+        <div className="rounded-xl border border-dashed border-purple-200 bg-purple-50/40 p-8 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+            <Sparkles className="h-6 w-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">
+            Ready to Generate Clinical Decision Support Summary
+          </h3>
+          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+            Click <strong>"Generate AI Clinical Insight"</strong> above to trigger Granite model
+            inference across patient adherence records, pain scores, session completion patterns,
+            and active risk flags.
+          </p>
+        </div>
+      )}
+
+      {/* Loading state */}
+      {(isLoading || isFetching) && (
+        <div className="rounded-xl border border-purple-100 bg-white p-8 shadow-sm text-center space-y-4">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-600 animate-spin">
+            <RotateCw className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">
+              Running Clinical Synthesis Model...
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Evaluating 28-day adherence trends, consecutive session gaps, and pain outcome trajectories.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {isError && !isLoading && !isFetching && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
+          <p className="font-semibold">Unable to fetch AI insight.</p>
+          <p className="text-xs text-red-600 mt-1">
+            Please ensure the backend is running and try again.
+          </p>
+        </div>
+      )}
+
+      {/* Generated Insight Display */}
+      {insight && (
+        <div className="space-y-5 animate-in fade-in duration-300">
+          {/* Provider Badge Bar */}
+          <div className="flex items-center justify-between rounded-lg bg-slate-100 px-4 py-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-700">AI Intelligence Provider:</span>
+              <span
+                className={`font-mono font-bold px-2 py-0.5 rounded ${
+                  insight.provider === 'watsonx-granite'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {insight.provider === 'watsonx-granite'
+                  ? 'IBM watsonx.ai / Granite'
+                  : 'Demo AI Insight — watsonx.ai not configured'}
+              </span>
+            </div>
+            <span className="text-slate-500 font-mono text-[11px]">Model: {insight.model_used}</span>
+          </div>
+
+          {/* Overall Status Card */}
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+                Overall Patient Clinical Status
+              </h3>
+              <RiskBadge level={insight.risk_level as any} compact />
+            </div>
+            <p className="text-sm leading-relaxed text-slate-800 font-medium bg-slate-50 p-4 rounded-lg border border-slate-100">
+              {insight.status}
+            </p>
+          </div>
+
+          {/* Grid: Observed Trends & Attention Factors */}
+          <div className="grid gap-5 md:grid-cols-2">
+            {/* Key Observed Trends */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <TrendingUp className="h-4 w-4 text-brand-600" />
+                Key Observed Trends
+              </h3>
+              <ul className="space-y-2">
+                {insight.key_trends.map((trend, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg"
+                  >
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 mt-0.5" />
+                    <span>{trend}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Attention Factors */}
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                Factors Requiring Clinician Attention
+              </h3>
+              <ul className="space-y-2">
+                {insight.attention_factors.map((factor, idx) => (
+                  <li
+                    key={idx}
+                    className="flex items-start gap-2 text-xs text-slate-700 bg-amber-50/60 border border-amber-100 p-2.5 rounded-lg"
+                  >
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                    <span>{factor}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Suggested Clinical Review / Action */}
+          <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-6 shadow-sm space-y-2">
+            <h3 className="text-sm font-bold text-purple-900 flex items-center gap-2">
+              <Brain className="h-4 w-4 text-purple-700" />
+              Suggested Clinical Decision-Support Action
+            </h3>
+            <p className="text-xs text-purple-900 leading-relaxed font-medium">
+              {insight.suggested_review}
+            </p>
+          </div>
+
+          {/* Medical Safety Disclaimer */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] text-slate-500 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
+            <span>{insight.disclaimer}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -410,7 +604,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'sessions', label: 'Sessions' },
   { id: 'adherence', label: 'Adherence' },
   { id: 'outcomes', label: 'Outcomes' },
-  { id: 'ai-summary', label: 'AI Summary' },
+  { id: 'ai-summary', label: 'AI Clinical Insight' },
 ]
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -487,8 +681,8 @@ export default function PatientProfilePage() {
             >
               {label}
               {tabId === 'ai-summary' && (
-                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
-                  Phase 4
+                <span className="ml-1.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
+                  AI
                 </span>
               )}
             </button>
@@ -501,7 +695,8 @@ export default function PatientProfilePage() {
       {activeTab === 'sessions' && <SessionsTab patient={patient} />}
       {activeTab === 'adherence' && <AdherenceTab patientId={patient.id} plannedPerWeek={patient.planned_sessions_per_week} />}
       {activeTab === 'outcomes' && <OutcomesTab patientId={patient.id} />}
-      {activeTab === 'ai-summary' && <AISummaryTab />}
+      {activeTab === 'ai-summary' && <AISummaryTab patientId={patient.id} />}
+
 
       <p className="mt-8 text-xs text-slate-400">
         <Calendar className="mr-1 inline h-3 w-3" />

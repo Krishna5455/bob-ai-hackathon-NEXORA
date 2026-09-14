@@ -1,11 +1,130 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Users, Activity, TrendingUp, AlertTriangle, TrendingDown, Minus } from 'lucide-react'
-import { getDashboardSummary } from '@/lib/api'
+import {
+  Users,
+  Activity,
+  TrendingUp,
+  AlertTriangle,
+  TrendingDown,
+  Minus,
+  Brain,
+  Sparkles,
+  CheckCircle2,
+  RotateCw,
+  ShieldCheck,
+} from 'lucide-react'
+import { getDashboardSummary, getDashboardAIInsight } from '@/lib/api'
 import { StatCard } from '@/components/ui/StatCard'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { LoadingState, ErrorState } from '@/components/ui/States'
-import type { PatientSummary } from '@/types/api'
+import type { PatientSummary, DashboardAIInsight } from '@/types/api'
+
+function AICohortInsightWidget() {
+  const { data: insight, isLoading, isError, refetch, isFetching } = useQuery<DashboardAIInsight>({
+    queryKey: ['dashboard-ai-insight'],
+    queryFn: getDashboardAIInsight,
+    staleTime: 60_000,
+  })
+
+  if (isLoading || isFetching) {
+    return (
+      <div className="rounded-lg bg-slate-50 border border-slate-200 p-6 text-center space-y-2">
+        <RotateCw className="h-5 w-5 animate-spin mx-auto text-purple-600" />
+        <p className="text-xs font-semibold text-slate-700">Synthesizing Cohort Intelligence...</p>
+        <p className="text-[11px] text-slate-400">Evaluating panel adherence and risk signals across all patients.</p>
+      </div>
+    )
+  }
+
+  if (isError || !insight) {
+    return (
+      <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 flex items-center justify-between text-xs text-slate-600">
+        <span>Click below to generate cohort intelligence with Granite AI.</span>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="px-3 py-1.5 rounded-md bg-purple-600 text-white font-semibold hover:bg-purple-700"
+        >
+          Synthesize Cohort
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Provider badge */}
+      <div className="flex items-center justify-between rounded-lg bg-slate-100 px-3.5 py-1.5 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-700">Provider:</span>
+          <span
+            className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+              insight.provider === 'watsonx-granite'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-amber-100 text-amber-800'
+            }`}
+          >
+            {insight.provider === 'watsonx-granite'
+              ? 'IBM watsonx.ai / Granite'
+              : 'Demo AI Insight — watsonx.ai not configured'}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="flex items-center gap-1 text-[11px] font-semibold text-purple-700 hover:text-purple-900"
+        >
+          <RotateCw className="h-3 w-3" />
+          Re-Synthesize
+        </button>
+      </div>
+
+      {/* Cohort Summary Text */}
+      <p className="text-xs leading-relaxed text-slate-800 bg-slate-50 p-4 rounded-lg border border-slate-100">
+        {insight.cohort_summary}
+      </p>
+
+      {/* Key Observations & Actions */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+            Key Cohort Observations
+          </h4>
+          <ul className="space-y-1.5 text-xs text-slate-700">
+            {insight.key_observations.map((obs, i) => (
+              <li key={i} className="flex items-start gap-1.5 bg-slate-50 p-2 rounded border border-slate-100">
+                <span className="text-emerald-500 font-bold">•</span>
+                <span>{obs}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+            <Brain className="h-3.5 w-3.5 text-purple-600" />
+            Recommended Clinical Actions
+          </h4>
+          <ul className="space-y-1.5 text-xs text-purple-950">
+            {insight.suggested_clinical_actions.map((act, i) => (
+              <li key={i} className="flex items-start gap-1.5 bg-purple-50/60 p-2 rounded border border-purple-100">
+                <span className="text-purple-600 font-bold">•</span>
+                <span>{act}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Disclaimer */}
+      <div className="text-[10px] text-slate-400 italic flex items-center gap-1 pt-1">
+        <ShieldCheck className="h-3 w-3 shrink-0" />
+        <span>{insight.disclaimer}</span>
+      </div>
+    </div>
+  )
+}
 
 function RiskBar({ distribution }: { distribution: Record<string, number> }) {
   const total = (distribution.low ?? 0) + (distribution.medium ?? 0) + (distribution.high ?? 0)
@@ -43,6 +162,7 @@ function WoWTrendIcon({ trend }: { trend: number }) {
 
 function AttentionRow({ patient }: { patient: PatientSummary }) {
   const adh = patient.adherence
+
   return (
     <Link
       to={`/patients/${patient.id}`}
@@ -158,28 +278,38 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Recent AI Insights */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="mb-4 text-base font-semibold text-slate-900">AI Clinical Insights</h2>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <strong>Phase 4:</strong> IBM watsonx.ai-powered clinical insights will appear here.
-            They will be generated from patient adherence, session, and outcome data and presented
-            as decision support only — not as diagnosis or treatment recommendations.
+        {/* AI Cohort Insight Section */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                <Brain className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  AI Clinical Cohort Intelligence
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Panel-wide adherence synthesis & anomaly detection powered by IBM Granite
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                to="/assistant"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 transition-colors"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Ask Assistant
+              </Link>
+            </div>
           </div>
-          {data.recent_insights.length > 0 && (
-            <ul className="mt-4 space-y-3">
-              {data.recent_insights.map((insight) => (
-                <li key={insight.id} className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                  <p className="mb-1 text-xs text-slate-400">
-                    {new Date(insight.generated_at).toLocaleString()}
-                  </p>
-                  {insight.insight_text}
-                </li>
-              ))}
-            </ul>
-          )}
+
+          <AICohortInsightWidget />
         </div>
       </div>
+
 
       {/* Demo data notice */}
       <p className="mt-8 text-center text-xs text-slate-400">

@@ -8,6 +8,9 @@ import type {
   AdherenceSummary,
   AdherenceWeeklySeries,
   OutcomePoint,
+  PatientAIInsight,
+  DashboardAIInsight,
+  AssistantResponse,
 } from '@/types/api'
 
 const api = axios.create({
@@ -65,6 +68,23 @@ export async function getPatientOutcomes(id: string): Promise<OutcomePoint[]> {
 
 export async function createSession(payload: TreatmentSessionCreate): Promise<TreatmentSession> {
   const res = await api.post<TreatmentSession>('/sessions', payload)
+  return res.data
+}
+
+// ── AI Insights ───────────────────────────────────────────────────────────────
+
+export async function getPatientAIInsight(id: string): Promise<PatientAIInsight> {
+  const res = await api.get<PatientAIInsight>(`/ai/patients/${id}/insight`)
+  return res.data
+}
+
+export async function getDashboardAIInsight(): Promise<DashboardAIInsight> {
+  const res = await api.get<DashboardAIInsight>('/ai/dashboard-insight')
+  return res.data
+}
+
+export async function askAIAssistant(message: string): Promise<AssistantResponse> {
+  const res = await api.post<AssistantResponse>('/ai/assistant', { message })
   return res.data
 }
 

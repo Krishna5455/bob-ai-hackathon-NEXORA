@@ -77,6 +77,38 @@ export interface AIInsight {
   model_used: string
 }
 
+export interface PatientAIInsight {
+  provider: string
+  model_used: string
+  patient_id: string
+  patient_name: string
+  risk_level: RiskLevel
+  status: string
+  key_trends: string[]
+  attention_factors: string[]
+  suggested_review: string
+  disclaimer: string
+}
+
+export interface AssistantResponse {
+  provider: string
+  model_used: string
+  response: string
+  text: string
+  disclaimer: string
+  suggested_questions?: string[]
+}
+
+export interface DashboardAIInsight {
+  provider: string
+  model_used: string
+  cohort_summary: string
+  risk_overview: string
+  key_observations: string[]
+  suggested_clinical_actions: string[]
+  disclaimer: string
+}
+
 // ── Outcome ───────────────────────────────────────────────────────────────────
 
 export interface OutcomePoint {
