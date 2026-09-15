@@ -12,15 +12,15 @@ team:
   name: "NEXORA"
   track: "AI"
   lead:
-    name: "Krishna Mangukiya"
-    email: "25it053@charusat.edu.in"
+    name: "Anjali Mestry"
+    email: "22bpt016@charusat.edu.in"
   members:
     - name: "Dhwani Patel"
       email: "22bpt022@charusat.edu.in"
-    - name: "Anjali Mestry"
-      email: "22bpt016@charusat.edu.in"
     - name: "Siddhi Patel"
       email: "22bpt039@charusat.edu.in"
+    - name: "Krishna Mangukiya"
+      email: "25it053@charusat.edu.in"
 
 submission:
   title: "Veno-Pump Clinical Monitoring & Intelligent Rehabilitation Platform"
