@@ -102,3 +102,5 @@ logs/
 
 # -- Temporary server output files (created during local dev/testing) ----------
 *.err
+# -- IBM Bob hackathon config (local only) -------------------------------------
+.bob/

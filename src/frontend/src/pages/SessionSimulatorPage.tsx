@@ -2,18 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft,
   Play,
   Pause,
   RotateCcw,
   FastForward,
-  CheckCircle2,
   AlertCircle,
   Zap,
   Activity,
   Gauge,
   ChevronRight,
-  ShieldCheck,
   Send,
   Sliders,
   Check,
@@ -159,7 +156,6 @@ export default function SessionSimulatorPage() {
     return () => clearInterval(interval)
   }, [isRunning, isCompleted, speedMultiplier])
 
-  // Handlers
   const handleStart = () => {
     setIsRunning(true)
     if (currentPhase === 'idle') {
@@ -183,18 +179,16 @@ export default function SessionSimulatorPage() {
   }
 
   const handleFastForwardComplete = () => {
+    setElapsedSeconds(TOTAL_SESSION_SECONDS)
     setIsRunning(false)
     setIsCompleted(true)
-    setElapsedSeconds(TOTAL_SESSION_SECONDS)
     setCurrentPhase('idle')
-    setPhaseProgress(1)
-    setCompletedCycles(Math.floor(TOTAL_SESSION_SECONDS / CYCLE_DURATION))
     setShowFeedbackModal(true)
   }
 
   const handleFeedbackSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!id || sessionMutation.isPending) return
+    if (!id) return
 
     sessionMutation.mutate({
       patient_id: id,
@@ -254,71 +248,56 @@ export default function SessionSimulatorPage() {
   const isNMESActive = isRunning && currentPhase === 'hold'
 
   return (
-    <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Breadcrumb navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-500">
-          <Link
-            to={`/patients/${id}`}
-            className="flex items-center gap-1.5 font-medium hover:text-brand-600 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {patient.name} ({patient.id})
-          </Link>
-          <span>/</span>
-          <span className="text-slate-900 font-semibold">Treatment Simulator</span>
-        </div>
+    <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Breadcrumbs Navigation */}
+      <nav className="animate-cs-fade-in-up flex items-center gap-2 text-xs text-slate-400 font-medium">
+        <Link to="/dashboard" className="hover:text-cyan-300 transition-colors">
+          Dashboard
+        </Link>
+        <span>/</span>
+        <Link to="/patients" className="hover:text-cyan-300 transition-colors">
+          Patients
+        </Link>
+        <span>/</span>
+        <Link to={`/patients/${id}`} className="hover:text-cyan-300 transition-colors">
+          {patient.name} ({patient.id})
+        </Link>
+        <span>/</span>
+        <span className="text-cyan-400 font-semibold">Treatment Session</span>
+      </nav>
 
-        {/* Live status badge */}
-        <div className="flex items-center gap-2">
-          {isRunning ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 animate-pulse">
-              <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-              SESSION IN PROGRESS ({speedMultiplier}x)
-            </span>
-          ) : isCompleted ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              SESSION COMPLETED
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
-              STANDBY
-            </span>
-          )}
-        </div>
+      {/* Prominent Medical Concept & Simulation Notice */}
+      <div className="animate-cs-fade-in-up cs-stagger-1">
+        <SimulatorBanner />
       </div>
 
-      {/* Prominent Medical Concept & Simulation Banner */}
-      <SimulatorBanner />
-
       {/* Main Header Card */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="animate-cs-fade-in-up cs-stagger-2 rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 cs-card">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 border border-brand-100">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
             <Activity className="h-6 w-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">
-                Veno-Pump Calf Rehabilitation Simulator
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-white">
+                Veno-Pump Treatment Session Simulator
               </h1>
-              <span className="rounded bg-brand-100 text-brand-800 px-2 py-0.5 text-xs font-bold uppercase tracking-wider">
-                Virtual Device
+              <span className="rounded-full bg-cyan-950 px-2.5 py-0.5 text-[10px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
+                SIMULATED DEVICE SESSION
               </span>
             </div>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Target Patient: <strong className="text-slate-700">{patient.name}</strong> · Protocol:{' '}
-              <span className="text-slate-700">
-                Graduated Pneumatic Compression (25-45 mmHg) + Synchronized Calf NMES (35 Hz)
+            <p className="text-xs text-slate-300 mt-1">
+              Patient: <strong className="text-white">{patient.name} ({patient.id})</strong> · Protocol:{' '}
+              <span className="text-cyan-300 font-mono">
+                Graduated Compression (45/35/25 mmHg) + Synchronized Calf NMES (35 Hz)
               </span>
             </p>
           </div>
         </div>
 
         {/* Speed Controls */}
-        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200 self-start md:self-auto">
-          <span className="text-xs font-semibold text-slate-500 px-2">Simulation Speed:</span>
+        <div className="flex items-center gap-2 bg-slate-950/80 p-2 rounded-2xl border border-slate-800 self-start md:self-auto shadow-inner">
+          <span className="text-xs font-semibold text-slate-400 px-2 font-mono">Speed:</span>
           {[
             { label: '1x (Real)', val: 1 },
             { label: '5x (Fast)', val: 5 },
@@ -328,10 +307,10 @@ export default function SessionSimulatorPage() {
               key={val}
               type="button"
               onClick={() => setSpeedMultiplier(val)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded transition-colors ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
                 speedMultiplier === val
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-slate-600 hover:bg-slate-200'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
               }`}
             >
               {label}
@@ -342,32 +321,32 @@ export default function SessionSimulatorPage() {
 
       {/* Submission Success Confirmation View */}
       {submittedSession && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm animate-in fade-in duration-300">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-emerald-100 p-2 text-emerald-600">
+        <div className="rounded-3xl glass-panel border border-emerald-500/40 bg-emerald-950/20 p-6 shadow-2xl">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="rounded-2xl bg-emerald-950 p-2.5 text-emerald-400 border border-emerald-500/30">
                 <Check className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-emerald-900">
-                  Simulated Session Recorded Successfully!
+                <h2 className="text-base font-bold text-emerald-300">
+                  Simulated Treatment Session Recorded Successfully!
                 </h2>
-                <p className="text-sm text-emerald-800 mt-1">
-                  Session record has been committed to the clinical database (`venopump.db`) and
-                  integrated into patient adherence and outcome metrics.
+                <p className="text-xs text-slate-300 mt-1">
+                  Session telemetry has been written to the clinical database (`venopump.db`) and updated
+                  across cohort adherence and outcome calculations.
                 </p>
-                <div className="mt-4 flex flex-wrap gap-4 text-xs font-medium text-emerald-900">
-                  <div className="rounded-md bg-white/80 px-3 py-1.5 border border-emerald-200">
-                    Session ID: <span className="font-mono text-slate-700">{submittedSession.id.slice(0, 8)}...</span>
+                <div className="mt-4 flex flex-wrap gap-3 text-xs font-mono text-emerald-300">
+                  <div className="rounded-xl bg-slate-950/80 px-3.5 py-1.5 border border-slate-800">
+                    Session ID: <span className="font-bold text-white">{submittedSession.id.slice(0, 8)}...</span>
                   </div>
-                  <div className="rounded-md bg-white/80 px-3 py-1.5 border border-emerald-200">
-                    Duration: <span className="font-bold text-slate-800">{submittedSession.duration} mins</span>
+                  <div className="rounded-xl bg-slate-950/80 px-3.5 py-1.5 border border-slate-800">
+                    Duration: <span className="font-bold text-white">{submittedSession.duration} mins</span>
                   </div>
-                  <div className="rounded-md bg-white/80 px-3 py-1.5 border border-emerald-200">
-                    Reported Pain: <span className="font-bold text-slate-800">{submittedSession.pain} / 10</span>
+                  <div className="rounded-xl bg-slate-950/80 px-3.5 py-1.5 border border-slate-800">
+                    Discomfort: <span className="font-bold text-white">{submittedSession.pain} / 10</span>
                   </div>
-                  <div className="rounded-md bg-white/80 px-3 py-1.5 border border-emerald-200">
-                    Reported Comfort: <span className="font-bold text-slate-800">{submittedSession.comfort} / 10</span>
+                  <div className="rounded-xl bg-slate-950/80 px-3.5 py-1.5 border border-slate-800">
+                    Comfort: <span className="font-bold text-white">{submittedSession.comfort} / 10</span>
                   </div>
                 </div>
               </div>
@@ -376,14 +355,14 @@ export default function SessionSimulatorPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
               >
                 Run Another Session
               </button>
               <button
                 type="button"
                 onClick={() => navigate(`/patients/${id}`)}
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 shadow-sm transition-colors"
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-300 px-4 py-2 text-xs font-bold text-slate-950 hover:brightness-110 shadow-md shadow-cyan-500/20 transition-all"
               >
                 Return to Patient Profile
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -398,23 +377,23 @@ export default function SessionSimulatorPage() {
         {/* Left Column: Device Visualization (Chambers & Waveforms) */}
         <div className="lg:col-span-7 space-y-6">
           {/* Card 1: Calf Sleeve Graduated Compression Visualizer */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+          <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Gauge className="h-5 w-5 text-brand-600" />
-                <h2 className="text-base font-bold text-slate-900">
+                <Gauge className="h-5 w-5 text-cyan-400" />
+                <h2 className="text-base font-bold text-white">
                   Graduated Calf Compression Chamber Telemetry
                 </h2>
               </div>
               <span
-                className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                className={`text-xs font-mono font-bold uppercase tracking-wider px-3 py-1 rounded-full ${
                   currentPhase === 'inflation'
-                    ? 'bg-blue-100 text-blue-800'
+                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 animate-pulse'
                     : currentPhase === 'hold'
-                    ? 'bg-purple-100 text-purple-800'
+                    ? 'bg-blue-950 text-blue-300 border border-blue-500/40'
                     : currentPhase === 'deflation'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-slate-100 text-slate-600'
+                    ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                    : 'bg-slate-900 text-slate-400 border border-slate-800'
                 }`}
               >
                 Phase: {currentPhase === 'idle' ? 'Standby' : currentPhase}
@@ -422,32 +401,32 @@ export default function SessionSimulatorPage() {
             </div>
 
             {/* Visual Sleeve Chambers */}
-            <div className="rounded-xl bg-slate-900 p-6 text-white space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-800">
+            <div className="rounded-2xl bg-slate-950/90 border border-cyan-500/20 p-6 space-y-5">
+              <div className="flex items-center justify-between text-xs text-slate-400 pb-3 border-b border-slate-800">
                 <span>Anatomical Calf Zone (Proximal → Distal)</span>
-                <span>Graduated Pressure Target / Live mmHg</span>
+                <span className="font-mono text-cyan-400">Target / Live Pressure</span>
               </div>
 
               {/* Proximal Chamber (Upper Calf) */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="font-medium text-slate-300">
                     Chamber 3: Upper Calf (Proximal)
                   </span>
-                  <span className="font-mono font-bold text-blue-400">
+                  <span className="font-mono font-bold text-cyan-400">
                     {pressures.proximal} <span className="text-slate-500">/ 25 mmHg</span>
                   </span>
                 </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-slate-800">
+                <div className="h-3.5 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-150"
+                    className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-150 shadow-sm shadow-cyan-400/30"
                     style={{ width: `${(pressures.proximal / 25) * 100}%` }}
                   />
                 </div>
               </div>
 
               {/* Medial Chamber (Mid Calf) */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="font-medium text-slate-300">
                     Chamber 2: Mid Calf (Gastrocnemius Bellies)
@@ -456,16 +435,16 @@ export default function SessionSimulatorPage() {
                     {pressures.medial} <span className="text-slate-500">/ 35 mmHg</span>
                   </span>
                 </div>
-                <div className="h-3.5 w-full overflow-hidden rounded-full bg-slate-800">
+                <div className="h-3.5 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-150"
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-teal-400 transition-all duration-150 shadow-sm shadow-teal-400/30"
                     style={{ width: `${(pressures.medial / 35) * 100}%` }}
                   />
                 </div>
               </div>
 
               {/* Distal Chamber (Ankle) */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="font-medium text-slate-300">
                     Chamber 1: Distal Ankle (Max Pressure Base)
@@ -474,40 +453,40 @@ export default function SessionSimulatorPage() {
                     {pressures.distal} <span className="text-slate-500">/ 45 mmHg</span>
                   </span>
                 </div>
-                <div className="h-4 w-full overflow-hidden rounded-full bg-slate-800">
+                <div className="h-4 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 transition-all duration-150"
+                    className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400 transition-all duration-150 shadow-sm shadow-emerald-400/30"
                     style={{ width: `${(pressures.distal / 45) * 100}%` }}
                   />
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
-                <span>Directional Venous Flow: Ascending ↑</span>
+              <div className="pt-2 flex items-center justify-between text-xs font-mono text-slate-400">
+                <span>Directional Venous Emptying: Ascending ↑</span>
                 <span>Active Cycle: #{completedCycles + 1}</span>
               </div>
             </div>
 
             {/* Cycle Sequence Tracker */}
-            <div className="grid grid-cols-4 gap-2 text-center text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
               {[
-                { phase: 'inflation', label: '1. Inflation (3.5s)', desc: 'Sequential build' },
-                { phase: 'hold', label: '2. Hold + NMES (4s)', desc: 'Peak compression' },
-                { phase: 'deflation', label: '3. Deflation (2s)', desc: 'Rapid release' },
-                { phase: 'rest', label: '4. Rest (2.5s)', desc: 'Venous refill' },
+                { phase: 'inflation', label: '1. Inflation', desc: 'Sequential build (3.5s)' },
+                { phase: 'hold', label: '2. Hold + NMES', desc: 'Peak compression (4.0s)' },
+                { phase: 'deflation', label: '3. Deflation', desc: 'Rapid release (2.0s)' },
+                { phase: 'rest', label: '4. Rest', desc: 'Venous refill (2.5s)' },
               ].map(({ phase, label, desc }) => {
                 const isActive = currentPhase === phase
                 return (
                   <div
                     key={phase}
-                    className={`p-2.5 rounded-lg border transition-all ${
+                    className={`p-3 rounded-2xl border transition-all ${
                       isActive
-                        ? 'border-brand-500 bg-brand-50/80 font-bold text-brand-900 ring-2 ring-brand-200'
-                        : 'border-slate-200 bg-slate-50 text-slate-600'
+                        ? 'border-cyan-400 bg-cyan-950/80 font-bold text-cyan-300 shadow-md shadow-cyan-500/20'
+                        : 'border-slate-800 bg-slate-950/50 text-slate-400'
                     }`}
                   >
-                    <div className="truncate">{label}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5 font-normal">{desc}</div>
+                    <div className="truncate font-semibold">{label}</div>
+                    <div className="text-[10px] text-slate-400 mt-1 font-normal">{desc}</div>
                   </div>
                 )
               })}
@@ -515,19 +494,19 @@ export default function SessionSimulatorPage() {
           </div>
 
           {/* Card 2: NMES Pulse & Muscle Stimulation Visualizer */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Zap className="h-5 w-5 text-amber-500" />
-                <h2 className="text-base font-bold text-slate-900">
+                <Zap className="h-5 w-5 text-amber-400" />
+                <h2 className="text-base font-bold text-white">
                   Neuromuscular Electrical Stimulation (NMES) Pulse Train
                 </h2>
               </div>
               <span
-                className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                className={`text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full ${
                   isNMESActive
-                    ? 'bg-amber-100 text-amber-800 animate-pulse'
-                    : 'bg-slate-100 text-slate-500'
+                    ? 'bg-amber-950 text-amber-300 border border-amber-500/40 animate-pulse'
+                    : 'bg-slate-900 text-slate-500 border border-slate-800'
                 }`}
               >
                 {isNMESActive ? '⚡ STIMULATION FIRING (35 Hz)' : 'QUIESCENT'}
@@ -535,10 +514,10 @@ export default function SessionSimulatorPage() {
             </div>
 
             {/* Pulse Train Oscilloscope Visual */}
-            <div className="rounded-xl bg-slate-950 p-5 font-mono text-xs text-amber-400 relative overflow-hidden">
-              <div className="flex items-center justify-between text-slate-500 mb-3 border-b border-slate-800 pb-2">
+            <div className="rounded-2xl bg-slate-950 p-6 font-mono text-xs text-amber-400 border border-slate-800">
+              <div className="flex items-center justify-between text-slate-500 mb-3 border-b border-slate-800 pb-2 text-[11px]">
                 <span>SIMULATED BIPHASIC WAVEFORM</span>
-                <span>CH1: SOLEUS | CH2: GASTROCNEMIUS</span>
+                <span>TARGET: GASTROCNEMIUS & SOLEUS</span>
               </div>
 
               {/* Dynamic Waveform Simulation */}
@@ -548,7 +527,7 @@ export default function SessionSimulatorPage() {
                     {Array.from({ length: 24 }).map((_, i) => (
                       <div
                         key={i}
-                        className="w-1 bg-amber-400 rounded-full animate-bounce"
+                        className="w-1 bg-gradient-to-t from-amber-500 to-cyan-400 rounded-full animate-bounce"
                         style={{
                           height: `${30 + Math.sin(i * 0.8 + elapsedSeconds * 10) * 50}%`,
                           animationDelay: `${(i % 6) * 0.08}s`,
@@ -557,7 +536,7 @@ export default function SessionSimulatorPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="w-full border-t border-dashed border-slate-700 flex items-center justify-center">
+                  <div className="w-full border-t border-dashed border-slate-800 flex items-center justify-center">
                     <span className="bg-slate-950 px-3 text-[11px] text-slate-500">
                       NMES pulses active during compression HOLD phase only
                     </span>
@@ -578,9 +557,8 @@ export default function SessionSimulatorPage() {
               </div>
             </div>
 
-            <p className="text-xs text-slate-500 italic">
-              ⚠ Safe UI representation of simulated electrical parameters. No physical voltage or
-              current is emitted.
+            <p className="text-xs text-slate-400 italic">
+              ⚠ Simulated electrical waveform only. No physical voltage or current is emitted.
             </p>
           </div>
         </div>
@@ -588,31 +566,31 @@ export default function SessionSimulatorPage() {
         {/* Right Column: Controls, Telemetry, and Actions */}
         <div className="lg:col-span-5 space-y-6">
           {/* Card 3: Session Progress & Timer Controls */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Sliders className="h-5 w-5 text-brand-600" />
+          <div className="rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 shadow-2xl space-y-6">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <Sliders className="h-5 w-5 text-cyan-400" />
               Session Control & Telemetry
             </h2>
 
-            {/* Circular / Large Timer Display */}
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-6 text-center space-y-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            {/* Large Timer Display */}
+            <div className="rounded-2xl bg-slate-950/90 border border-slate-800 p-6 text-center space-y-3">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">
                 Simulated Elapsed Time
               </span>
-              <div className="text-5xl font-extrabold font-mono text-slate-900 tracking-tight">
+              <div className="text-5xl font-extrabold font-mono text-white tracking-tight">
                 {formattedTime}
                 <span className="text-xl font-normal text-slate-400"> / 20:00</span>
               </div>
 
               {/* Progress Bar */}
               <div className="space-y-1.5 pt-2">
-                <div className="flex justify-between text-xs font-medium text-slate-600">
+                <div className="flex justify-between text-xs font-mono text-slate-400">
                   <span>Session Completion</span>
-                  <span>{progressPercent.toFixed(1)}%</span>
+                  <span className="text-cyan-400 font-bold">{progressPercent.toFixed(1)}%</span>
                 </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+                <div className="h-3 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
                   <div
-                    className="h-full rounded-full bg-brand-600 transition-all duration-200"
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-200 shadow-sm shadow-cyan-400/30"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -626,18 +604,18 @@ export default function SessionSimulatorPage() {
                   type="button"
                   onClick={handleStart}
                   disabled={isCompleted}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-600 py-3.5 px-4 text-sm font-bold text-white shadow-md hover:bg-brand-700 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-teal-300 py-4 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-500/25 hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  <Play className="h-4 w-4 fill-white" />
+                  <Play className="h-4 w-4 fill-slate-950" />
                   {elapsedSeconds > 0 && !isCompleted ? 'Resume Treatment' : 'Start Treatment Session'}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handlePause}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-600 py-3.5 px-4 text-sm font-bold text-white shadow-md hover:bg-amber-700 active:scale-[0.99] transition-all"
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-4 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/25 hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <Pause className="h-4 w-4 fill-white" />
+                  <Pause className="h-4 w-4 fill-slate-950" />
                   Pause Treatment Session
                 </button>
               )}
@@ -647,7 +625,7 @@ export default function SessionSimulatorPage() {
                   type="button"
                   onClick={handleReset}
                   disabled={elapsedSeconds === 0}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white py-2.5 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 py-3 px-3 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   Reset Session
@@ -657,8 +635,8 @@ export default function SessionSimulatorPage() {
                   type="button"
                   onClick={handleFastForwardComplete}
                   disabled={isCompleted}
-                  className="flex items-center justify-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 py-2.5 px-3 text-xs font-semibold text-brand-700 hover:bg-brand-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="Fast-forward to 100% completion for hackathon judges"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/50 py-3 px-3 text-xs font-bold text-cyan-300 hover:bg-cyan-900/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Fast-forward to 100% completion for clinical demonstration"
                 >
                   <FastForward className="h-3.5 w-3.5" />
                   Fast Complete (Demo)
@@ -667,76 +645,57 @@ export default function SessionSimulatorPage() {
             </div>
 
             {/* Prescribed Protocol Summary */}
-            <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 space-y-2 text-xs">
-              <div className="font-semibold text-slate-700">Prescription Specifications:</div>
-              <div className="flex justify-between text-slate-600">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-2 text-xs">
+              <div className="font-bold text-slate-300">Prescription Specifications:</div>
+              <div className="flex justify-between text-slate-400">
                 <span>Protocol:</span>
-                <span className="font-medium text-slate-800">Standard Sequential Calf</span>
+                <span className="font-semibold text-white">Standard Sequential Calf</span>
               </div>
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-slate-400">
                 <span>Compression Gradient:</span>
-                <span className="font-medium text-slate-800">45 mmHg → 35 mmHg → 25 mmHg</span>
+                <span className="font-mono text-cyan-400">45 → 35 → 25 mmHg</span>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Prescribed Frequency:</span>
-                <span className="font-medium text-slate-800">
+              <div className="flex justify-between text-slate-400">
+                <span>Prescribed Target:</span>
+                <span className="font-semibold text-white">
                   {patient.planned_sessions_per_week} sessions / week
                 </span>
               </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Device Serial Number:</span>
-                <span className="font-mono text-slate-800">VP-DEV-SIM-2026</span>
-              </div>
             </div>
-          </div>
-
-          {/* Quick Guidance Box */}
-          <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-5 text-xs text-blue-800 space-y-2">
-            <div className="flex items-center gap-1.5 font-bold text-blue-900">
-              <ShieldCheck className="h-4 w-4 text-blue-700" />
-              Clinical Trial Demo Mode
-            </div>
-            <p className="leading-relaxed">
-              Upon session completion, the patient outcome feedback form will prompt for
-              standardized visual analog pain (0–10) and comfort scores. Results are automatically
-              committed to the patient cohort and re-evaluated by the risk engine.
-            </p>
           </div>
         </div>
       </div>
 
       {/* Post-Session Patient Feedback Modal */}
       {showFeedbackModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 space-y-5">
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg rounded-3xl glass-panel p-6 sm:p-8 border border-cyan-500/40 shadow-2xl space-y-6">
+            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="text-xl font-bold text-white">
                   Treatment Session Completed
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-400 mt-1">
                   Record patient-reported outcomes for {patient.name} ({patient.id})
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-xs font-bold">
+              <span className="rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/40 px-3 py-1 text-xs font-mono font-bold">
                 100% Completed
               </span>
             </div>
 
-            <form onSubmit={handleFeedbackSubmit} className="space-y-4">
+            <form onSubmit={handleFeedbackSubmit} className="space-y-5">
               {/* Pain Score (0-10) */}
               <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <label className="font-semibold text-slate-800">
-                    Patient Reported Pain / Discomfort (0–10):
-                  </label>
+                <div className="flex justify-between items-center text-xs font-semibold text-slate-300">
+                  <label>Patient Reported Discomfort (0–10):</label>
                   <span
-                    className={`font-mono font-bold text-base px-2 py-0.5 rounded ${
+                    className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded ${
                       painScore <= 3
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40'
                         : painScore <= 6
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                        : 'bg-rose-950 text-rose-300 border border-rose-500/40'
                     }`}
                   >
                     {painScore} / 10
@@ -749,22 +708,20 @@ export default function SessionSimulatorPage() {
                   step="1"
                   value={painScore}
                   onChange={(e) => setPainScore(parseInt(e.target.value, 10))}
-                  className="w-full accent-brand-600 h-2 bg-slate-200 rounded-lg cursor-pointer"
+                  className="w-full accent-cyan-400 h-2 bg-slate-900 rounded-lg cursor-pointer"
                 />
-                <div className="flex justify-between text-[11px] text-slate-400">
+                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                   <span>0: No pain</span>
                   <span>5: Moderate discomfort</span>
-                  <span>10: Severe pain</span>
+                  <span>10: Severe discomfort</span>
                 </div>
               </div>
 
               {/* Comfort Score (0-10) */}
               <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <label className="font-semibold text-slate-800">
-                    Sleeve Fit & Treatment Comfort (0–10):
-                  </label>
-                  <span className="font-mono font-bold text-base px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                <div className="flex justify-between items-center text-xs font-semibold text-slate-300">
+                  <label>Sleeve Fit & Treatment Comfort (0–10):</label>
+                  <span className="font-mono font-bold text-sm px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40">
                     {comfortScore} / 10
                   </span>
                 </div>
@@ -775,9 +732,9 @@ export default function SessionSimulatorPage() {
                   step="1"
                   value={comfortScore}
                   onChange={(e) => setComfortScore(parseInt(e.target.value, 10))}
-                  className="w-full accent-brand-600 h-2 bg-slate-200 rounded-lg cursor-pointer"
+                  className="w-full accent-cyan-400 h-2 bg-slate-900 rounded-lg cursor-pointer"
                 />
-                <div className="flex justify-between text-[11px] text-slate-400">
+                <div className="flex justify-between text-[10px] text-slate-400 font-mono">
                   <span>0: Very uncomfortable</span>
                   <span>5: Neutral</span>
                   <span>10: Highly comfortable</span>
@@ -786,7 +743,7 @@ export default function SessionSimulatorPage() {
 
               {/* Optional Session Notes */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700">
+                <label className="block text-xs font-semibold text-slate-300">
                   Clinical Session Notes (Optional):
                 </label>
                 <textarea
@@ -794,45 +751,44 @@ export default function SessionSimulatorPage() {
                   value={sessionNotes}
                   onChange={(e) => setSessionNotes(e.target.value)}
                   placeholder="e.g. Good tolerance, patient reported mild muscular activation in medial gastrocnemius."
-                  className="w-full rounded-lg border border-slate-300 p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs text-white placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
                 />
               </div>
 
               {/* Error Message if API fails */}
               {sessionMutation.isError && (
-                <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-700 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                <div className="rounded-xl bg-rose-950/40 border border-rose-500/30 p-3 text-xs text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
                   <span>
-                    Failed to submit session to backend. Please check network connection and try
-                    again.
+                    Failed to submit session to backend. Please check network connection and try again.
                   </span>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowFeedbackModal(false)}
                   disabled={sessionMutation.isPending}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
                 >
                   Dismiss
                 </button>
                 <button
                   type="submit"
                   disabled={sessionMutation.isPending}
-                  className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-5 py-2 text-xs font-bold text-white hover:bg-brand-700 shadow-sm transition-colors disabled:opacity-60"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-300 px-6 py-2.5 text-xs font-bold text-slate-950 hover:brightness-110 shadow-md shadow-cyan-500/25 transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {sessionMutation.isPending ? (
                     <>
-                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Submitting...
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-950 border-t-transparent" />
+                      <span>Submitting...</span>
                     </>
                   ) : (
                     <>
                       <Send className="h-3.5 w-3.5" />
-                      Submit & Save Session Record
+                      <span>Submit & Commit Record</span>
                     </>
                   )}
                 </button>
@@ -844,4 +800,3 @@ export default function SessionSimulatorPage() {
     </div>
   )
 }
-

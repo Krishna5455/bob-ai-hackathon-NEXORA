@@ -50,34 +50,49 @@ def call_watsonx_granite(prompt: str, system_prompt: str = "") -> Optional[str]:
     Returns generated string, or None if credentials missing or API call fails.
     """
     settings = get_settings()
-    if not settings.watsonx_api_key or not settings.watsonx_project_id:
+    api_key = (settings.watsonx_api_key or "").strip()
+    project_id = (settings.watsonx_project_id or "").strip()
+
+    # Guard against empty or placeholder values
+    if not api_key or not project_id or "your_" in api_key or "your_" in project_id or api_key == "placeholder":
+        logger.info("watsonx.ai credentials not configured or placeholder detected; using deterministic clinical engine.")
         return None
 
-    # Try official SDK first if installed
-    try:
-        from ibm_watsonx_ai.foundation_models import ModelInference
-        from ibm_watsonx_ai import Credentials
+    target_models = [settings.watsonx_model_id or "ibm/granite-4-h-small"]
+    if "ibm/granite-4-h-small" not in target_models:
+        target_models.append("ibm/granite-4-h-small")
+    if "ibm/granite-13b-instruct-v2" not in target_models:
+        target_models.append("ibm/granite-13b-instruct-v2")
 
-        creds = Credentials(
-            url=settings.watsonx_url or "https://us-south.ml.cloud.ibm.com",
-            api_key=settings.watsonx_api_key,
-        )
-        model = ModelInference(
-            model_id=settings.watsonx_model_id or "ibm/granite-13b-instruct-v2",
-            credentials=creds,
-            project_id=settings.watsonx_project_id,
-            params={
-                "max_new_tokens": 500,
-                "temperature": 0.2,
-                "decoding_method": "greedy",
-            },
-        )
-        full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        response = model.generate_text(prompt=full_prompt)
-        if response:
-            return response.strip()
-    except Exception as e:
-        logger.warning(f"watsonx.ai SDK call failed: {e}. Attempting REST fallback...")
+    # Try official SDK first if installed
+    for model_id in target_models:
+        try:
+            from ibm_watsonx_ai.foundation_models import ModelInference
+            from ibm_watsonx_ai import Credentials
+
+            creds = Credentials(
+                url=settings.watsonx_url or "https://eu-de.ml.cloud.ibm.com",
+                api_key=api_key,
+            )
+            model = ModelInference(
+                model_id=model_id,
+                credentials=creds,
+                project_id=project_id,
+                params={
+                    "max_new_tokens": 500,
+                    "temperature": 0.2,
+                },
+            )
+            if system_prompt:
+                full_prompt = f"<|start_of_role|>system<|end_of_role|>{system_prompt}<|end_of_text|><|start_of_role|>user<|end_of_role|>{prompt}<|end_of_text|><|start_of_role|>assistant<|end_of_role|>"
+            else:
+                full_prompt = prompt
+            response = model.generate_text(prompt=full_prompt)
+            if response and response.strip():
+                logger.info(f"Live watsonx.ai inference successful via SDK ({model_id}).")
+                return response.strip()
+        except Exception as e:
+            logger.warning(f"watsonx.ai SDK call failed for {model_id}: {e}. Attempting next option...")
 
     # Fallback to direct IBM Cloud REST call with httpx
     try:
@@ -88,44 +103,52 @@ def call_watsonx_granite(prompt: str, system_prompt: str = "") -> Optional[str]:
             "https://iam.cloud.ibm.com/identity/token",
             data={
                 "grant_type": "urn:ibm:params:oauth:grant-type:apikey",
-                "apikey": settings.watsonx_api_key,
+                "apikey": api_key,
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             timeout=10.0,
         )
         if iam_resp.status_code != 200:
-            logger.warning(f"IAM token exchange failed: {iam_resp.status_code}")
+            logger.warning(f"IAM token exchange failed ({iam_resp.status_code}): {iam_resp.text}")
             return None
         access_token = iam_resp.json().get("access_token")
 
         # 2. Call watsonx text generation endpoint
-        url = f"{settings.watsonx_url.rstrip('/')}/ml/v1/text/generation?version=2023-05-29"
-        full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        payload = {
-            "model_id": settings.watsonx_model_id or "ibm/granite-13b-instruct-v2",
-            "input": full_prompt,
-            "project_id": settings.watsonx_project_id,
-            "parameters": {
-                "max_new_tokens": 500,
-                "temperature": 0.2,
-                "decoding_method": "greedy",
-            },
-        }
-        gen_resp = httpx.post(
-            url,
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json",
-            },
-            timeout=15.0,
-        )
-        if gen_resp.status_code == 200:
-            results = gen_resp.json().get("results", [])
-            if results:
-                return results[0].get("generated_text", "").strip()
+        watsonx_url = (settings.watsonx_url or "https://eu-de.ml.cloud.ibm.com").rstrip("/")
+        url = f"{watsonx_url}/ml/v1/text/generation?version=2023-05-29"
+        if system_prompt:
+            full_prompt = f"<|start_of_role|>system<|end_of_role|>{system_prompt}<|end_of_text|><|start_of_role|>user<|end_of_role|>{prompt}<|end_of_text|><|start_of_role|>assistant<|end_of_role|>"
+        else:
+            full_prompt = prompt
+
+        for model_id in target_models:
+            payload = {
+                "model_id": model_id,
+                "input": full_prompt,
+                "project_id": project_id,
+                "parameters": {
+                    "max_new_tokens": 500,
+                    "temperature": 0.2,
+                },
+            }
+            gen_resp = httpx.post(
+                url,
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                timeout=20.0,
+            )
+            if gen_resp.status_code == 200:
+                results = gen_resp.json().get("results", [])
+                if results:
+                    logger.info(f"Live watsonx.ai inference successful via REST API ({model_id}).")
+                    return results[0].get("generated_text", "").strip()
+            else:
+                logger.warning(f"watsonx.ai REST generation ({model_id}) failed (HTTP {gen_resp.status_code}): {gen_resp.text}")
     except Exception as e:
-        logger.warning(f"watsonx.ai REST call failed: {e}")
+        logger.warning(f"watsonx.ai REST call exception: {e}")
 
     return None
 
@@ -158,18 +181,25 @@ def generate_patient_insight(patient: Patient, sessions: List[TreatmentSession])
         "You are an AI Clinical Decision Support assistant for a clinician monitoring patients "
         "in a wearable calf rehabilitation programme. "
         "Provide clear, professional, concise clinical observations. "
-        "Strict medical rules: Decision support only. Do not diagnose disease, prescribe medications, "
-        "or recommend changing electrical/compression settings. Use cautious clinical phrasing."
+        "Strict Medical & Grounding Rules:\n"
+        "1. Decision support only. Do not diagnose disease, prescribe medications, or recommend device setting modifications.\n"
+        "2. All numerical metrics supplied below (adherence %, session counts, pain scores, risk levels) are AUTHORITATIVE and calculated by the system.\n"
+        "3. Do NOT recalculate adherence percentage or contradict the supplied 28-day adherence metric.\n"
+        "4. Do NOT invent missing sessions, unrecorded dates, or unsupported clinical facts."
     )
     user_prompt = (
         f"Analyze patient {patient.id} ({patient.name}):\n"
         f"- Diagnosis: {patient.diagnosis}\n"
         f"- Risk Level: {risk_level.value.upper()}\n"
-        f"- 28-day Adherence: {adherence.adherence_pct}% (Planned: {adherence.planned_sessions}, Completed: {adherence.completed_sessions}, Missed: {adherence.missed_sessions})\n"
-        f"- WoW Trend: {adherence.week_over_week_trend:+.1f}pp\n"
+        f"- Prescribed Schedule: {patient.planned_sessions_per_week} sessions/week\n"
+        f"- Authoritative 28-Day Adherence: {adherence.adherence_pct}% "
+        f"({adherence.completed_sessions} completed of {adherence.planned_sessions} planned in 28-day window, {adherence.missed_sessions} missed)\n"
+        f"- Week-over-Week Adherence Trend: {adherence.week_over_week_trend:+.1f} percentage points\n"
         f"- Active Risk Flags: {', '.join(f.flag_type + ' (' + f.severity + ')' for f in flags) if flags else 'None'}\n"
-        f"- Pain History: Avg {avg_pain}/10 (Recent 3: {recent_pain}/10 vs Prior 3: {prior_pain}/10)\n\n"
-        "Provide a concise summary with: Overall Status, Key Trends, Attention Factors, Suggested Review."
+        f"- Pain History: Avg {avg_pain}/10 (Recent 3: {recent_pain}/10 vs Prior 3: {prior_pain}/10)\n"
+        f"- Lifetime Session History: {len(completed)} completed out of {len(sessions)} total recorded sessions in system\n\n"
+        "Provide a concise summary with: Overall Status, Key Trends, Attention Factors, Suggested Review. "
+        f"Cite the authoritative 28-day adherence as exactly {adherence.adherence_pct}%."
     )
 
     watsonx_output = call_watsonx_granite(user_prompt, system_prompt)
@@ -183,9 +213,9 @@ def generate_patient_insight(patient: Patient, sessions: List[TreatmentSession])
             "risk_level": risk_level.value,
             "status": watsonx_output,
             "key_trends": [
-                f"Adherence at {adherence.adherence_pct}% with {adherence.week_over_week_trend:+.1f}pp WoW trend",
+                f"28-Day Adherence at {adherence.adherence_pct}% with {adherence.week_over_week_trend:+.1f}pp WoW trend ({adherence.completed_sessions}/{adherence.planned_sessions} planned completed)",
                 f"Pain trajectory: recent average {recent_pain}/10 (overall: {avg_pain}/10)",
-                f"Completed {len(completed)} of {len(sessions)} recorded sessions",
+                f"Lifetime record: {len(completed)} completed of {len(sessions)} recorded sessions",
             ],
             "attention_factors": [f.detail for f in flags] if flags else ["No critical flags detected"],
             "suggested_review": (
@@ -275,11 +305,11 @@ def generate_patient_insight(patient: Patient, sessions: List[TreatmentSession])
 
 def answer_assistant_query(question: str, db: Session) -> Dict[str, Any]:
     """
-    Answers clinician natural language questions grounded in real database context.
+    Answers clinician natural language questions grounded strictly in real database context.
     """
     patients = db.exec(select(Patient)).all()
 
-    # Build cohort context
+    # Build structured cohort context with unambiguous metric definitions
     patient_summaries = []
     attention_list = []
     declining_list = []
@@ -298,16 +328,24 @@ def answer_assistant_query(question: str, db: Session) -> Dict[str, Any]:
         avg_pain = round(sum(pain_scores) / len(pain_scores), 1) if pain_scores else 0.0
 
         p_info = {
-            "id": p.id,
-            "name": p.name,
+            "patient_id": p.id,
+            "patient_name": p.name,
             "diagnosis": p.diagnosis,
-            "risk_level": risk_level.value,
-            "adherence_pct": adherence.adherence_pct,
-            "wow_trend": adherence.week_over_week_trend,
-            "completed_sessions": len(completed),
-            "total_sessions": len(sessions),
-            "avg_pain": avg_pain,
-            "flags": [f"{f.flag_type} ({f.severity}): {f.detail}" for f in flags],
+            "assigned_risk_level": risk_level.value.upper(),
+            "prescribed_frequency": f"{p.planned_sessions_per_week} sessions/week",
+            "authoritative_28_day_metrics": {
+                "adherence_percentage": f"{adherence.adherence_pct}%",
+                "planned_sessions_in_28d": adherence.planned_sessions,
+                "completed_sessions_in_28d": adherence.completed_sessions,
+                "missed_sessions_in_28d": adherence.missed_sessions,
+                "week_over_week_trend": f"{adherence.week_over_week_trend:+.1f} percentage points",
+            },
+            "lifetime_session_history": {
+                "total_recorded_sessions_in_db": len(sessions),
+                "total_completed_sessions": len(completed),
+            },
+            "average_reported_pain": f"{avg_pain}/10",
+            "active_risk_flags": [f"{f.flag_type} ({f.severity}): {f.detail}" for f in flags] if flags else ["None (Stable profile)"],
         }
         patient_summaries.append(p_info)
 
@@ -319,17 +357,26 @@ def answer_assistant_query(question: str, db: Session) -> Dict[str, Any]:
             pain_increase_list.append(p_info)
 
     settings = get_settings()
-    model_name = settings.watsonx_model_id or "ibm/granite-13b-instruct-v2"
+    model_name = settings.watsonx_model_id or "ibm/granite-4-h-small"
 
     # Try watsonx first
     system_prompt = (
         "You are an AI Clinical Assistant for clinicians reviewing a panel of patients in a "
-        "wearable calf rehabilitation programme (Veno-Pump). Answer strictly based on the provided "
-        "cohort data. If information is not in the data, state that it is unavailable. "
-        "Strictly adhere to medical decision-support guidelines. Do not diagnose or prescribe."
+        "wearable calf rehabilitation programme (Veno-Pump). Answer strictly and solely based on the "
+        "provided structured patient context.\n"
+        "Strict Grounding Rules:\n"
+        "1. All numerical metrics in the context are AUTHORITATIVE and calculated by the clinical engine.\n"
+        "2. Do NOT recalculate adherence percentage or divide lifetime sessions to invent a new percentage. Always cite the authoritative 28-day adherence percentage directly.\n"
+        "3. Do NOT invent missing sessions, unrecorded dates, diagnoses, risk levels, or clinical facts.\n"
+        "4. Decision support only: Do not diagnose disease or prescribe medications."
     )
     cohort_json = json.dumps(patient_summaries, indent=2)
-    user_prompt = f"Grounded Patient Panel Data:\n{cohort_json}\n\nClinician Question: {question}"
+    user_prompt = (
+        f"Authoritative Grounded Patient Panel Data:\n{cohort_json}\n\n"
+        f"Clinician Question: {question}\n\n"
+        "Instructions: Answer concisely using ONLY the exact authoritative figures provided above. "
+        "When asked about adherence or patient status, cite the exact 28-day adherence percentage and window counts."
+    )
 
     watsonx_output = call_watsonx_granite(user_prompt, system_prompt)
     if watsonx_output:
@@ -354,36 +401,32 @@ def answer_assistant_query(question: str, db: Session) -> Dict[str, Any]:
     # Check for specific patient ID mention first (e.g. "P-001" .. "P-008" or patient name)
     target_patient = None
     for p in patient_summaries:
-        if p["id"].lower() in q or p["name"].lower() in q:
+        if p["patient_id"].lower() in q or p["patient_name"].lower() in q:
             target_patient = p
             break
 
     # Specific Question 1: Why is P-XXX high risk? / Specific patient risk query
     if target_patient and ("why" in q or "risk" in q or "flag" in q or "factor" in q):
-        resp_lines.append(f"**Risk Factor Analysis for {target_patient['id']} ({target_patient['name']}):**\n")
+        m28 = target_patient["authoritative_28_day_metrics"]
+        resp_lines.append(f"**Risk Factor Analysis for {target_patient['patient_id']} ({target_patient['patient_name']}):**\n")
         resp_lines.append(f"• **Diagnosis:** {target_patient['diagnosis']}")
-        resp_lines.append(f"• **Current Risk Level:** [{target_patient['risk_level'].upper()}]")
-        if target_patient["flags"]:
-            resp_lines.append("• **Triggering Risk Flags:**")
-            for f in target_patient["flags"]:
-                resp_lines.append(f"  - {f}")
-        else:
-            resp_lines.append("• **Triggering Risk Flags:** None (Stable clinical profile).")
-        resp_lines.append(f"• **Adherence Context:** {target_patient['adherence_pct']}% 28-day adherence (WoW Trend: {target_patient['wow_trend']:+.1f}pp).")
-        resp_lines.append(f"• **Pain Score Context:** Average {target_patient['avg_pain']}/10 across completed sessions.")
+        resp_lines.append(f"• **Current Risk Level:** [{target_patient['assigned_risk_level']}]")
+        resp_lines.append(f"• **Triggering Risk Flags:** {', '.join(target_patient['active_risk_flags'])}")
+        resp_lines.append(f"• **28-Day Adherence:** {m28['adherence_percentage']} ({m28['completed_sessions_in_28d']} completed of {m28['planned_sessions_in_28d']} planned, WoW Trend: {m28['week_over_week_trend']})")
+        resp_lines.append(f"• **Pain Score Context:** Average {target_patient['average_reported_pain']} across completed sessions.")
         resp_lines.append("\n*Suggested Action: Review patient symptoms and evaluate session tolerance.*")
 
     # Specific Question 2: Patient specific summary (e.g. "Summarize P-004" or "Tell me about P-001")
     elif target_patient:
-        resp_lines.append(f"**Clinical Summary for {target_patient['id']} — {target_patient['name']}:**\n")
+        m28 = target_patient["authoritative_28_day_metrics"]
+        hist = target_patient["lifetime_session_history"]
+        resp_lines.append(f"**Clinical Summary for {target_patient['patient_id']} — {target_patient['patient_name']}:**\n")
         resp_lines.append(f"• **Diagnosis:** {target_patient['diagnosis']}")
-        resp_lines.append(f"• **Current Risk Level:** [{target_patient['risk_level'].upper()}]")
-        resp_lines.append(f"• **28-Day Adherence:** {target_patient['adherence_pct']}% (WoW Trend: {target_patient['wow_trend']:+.1f}pp)")
-        resp_lines.append(f"• **Session History:** {target_patient['completed_sessions']} completed of {target_patient['total_sessions']} scheduled (Avg Pain: {target_patient['avg_pain']}/10)")
-        if target_patient["flags"]:
-            resp_lines.append(f"• **Active Risk Flags:**\n  " + "\n  ".join(f"- {f}" for f in target_patient["flags"]))
-        else:
-            resp_lines.append("• **Active Risk Flags:** None. Stable clinical profile.")
+        resp_lines.append(f"• **Current Risk Level:** [{target_patient['assigned_risk_level']}]")
+        resp_lines.append(f"• **Prescription:** {target_patient['prescribed_frequency']}")
+        resp_lines.append(f"• **28-Day Adherence (Authoritative):** {m28['adherence_percentage']} ({m28['completed_sessions_in_28d']} completed of {m28['planned_sessions_in_28d']} planned in 28-day window, WoW Trend: {m28['week_over_week_trend']})")
+        resp_lines.append(f"• **Lifetime Session Record:** {hist['total_completed_sessions']} completed of {hist['total_recorded_sessions_in_db']} recorded (Avg Pain: {target_patient['average_reported_pain']})")
+        resp_lines.append(f"• **Active Risk Flags:** {', '.join(target_patient['active_risk_flags'])}")
         resp_lines.append("\n*Decision Support Note: Review patient-reported pain/comfort and adherence trends during next appointment.*")
 
     # General Question 3: Declining adherence / dropouts across cohort
@@ -391,7 +434,8 @@ def answer_assistant_query(question: str, db: Session) -> Dict[str, Any]:
         resp_lines.append(f"**Patients with Declining Adherence or Missed Sessions:**\n")
         if declining_list:
             for p in declining_list:
-                resp_lines.append(f"• **{p['id']} ({p['name']})** — Adherence dropped to {p['adherence_pct']}% (WoW: {p['wow_trend']:+.1f}pp). Flags: {', '.join(p['flags'])}")
+                m28 = p["authoritative_28_day_metrics"]
+                resp_lines.append(f"• **{p['patient_id']} ({p['patient_name']})** — 28-Day Adherence: {m28['adherence_percentage']} (WoW: {m28['week_over_week_trend']}). Flags: {', '.join(p['active_risk_flags'])}")
         else:
             resp_lines.append("No patients currently exhibit critical adherence decline (>20pp drop).")
         resp_lines.append("\n*Recommendation: Follow up with patients exhibiting attendance drops to identify technical or comfort barriers.*")
@@ -400,34 +444,34 @@ def answer_assistant_query(question: str, db: Session) -> Dict[str, Any]:
     elif "attention" in q or "who needs" in q or "flagged" in q or "high risk" in q:
         resp_lines.append(f"There are currently **{len(attention_list)} patients** requiring clinical attention in the panel:\n")
         for p in attention_list:
-            flag_str = "; ".join(p["flags"]) if p["flags"] else "Elevated risk profile"
-            resp_lines.append(f"• **{p['id']} ({p['name']})** — [{p['risk_level'].upper()}] {p['diagnosis']}")
-            resp_lines.append(f"  *Adherence: {p['adherence_pct']}% (WoW: {p['wow_trend']:+.1f}pp) | Reason: {flag_str}*")
+            m28 = p["authoritative_28_day_metrics"]
+            flag_str = "; ".join(p["active_risk_flags"])
+            resp_lines.append(f"• **{p['patient_id']} ({p['patient_name']})** — [{p['assigned_risk_level']}] {p['diagnosis']}")
+            resp_lines.append(f"  *28-Day Adherence: {m28['adherence_percentage']} (WoW: {m28['week_over_week_trend']}) | Flags: {flag_str}*")
         resp_lines.append("\n*Suggested Action: Clinician review recommended for flagged patients to assess discomfort and session adherence.*")
 
     # General Question 5: Cohort overview
     elif "cohort" in q or "overview" in q or "summary" in q or "panel" in q or "all patients" in q:
-        high_count = sum(1 for p in patient_summaries if p["risk_level"] == "high")
-        med_count = sum(1 for p in patient_summaries if p["risk_level"] == "medium")
-        low_count = sum(1 for p in patient_summaries if p["risk_level"] == "low")
-        avg_adh = round(sum(p["adherence_pct"] for p in patient_summaries) / len(patient_summaries), 1)
+        high_count = sum(1 for p in patient_summaries if p["assigned_risk_level"] == "HIGH")
+        med_count = sum(1 for p in patient_summaries if p["assigned_risk_level"] == "MEDIUM")
+        low_count = sum(1 for p in patient_summaries if p["assigned_risk_level"] == "LOW")
+        avg_adh = round(sum(float(p["authoritative_28_day_metrics"]["adherence_percentage"].rstrip('%')) for p in patient_summaries) / len(patient_summaries), 1)
 
         resp_lines.append(f"**Cohort Overview ({len(patient_summaries)} Patients Enrolled):**\n")
         resp_lines.append(f"• **Risk Breakdown:** {high_count} High Risk | {med_count} Medium Risk | {low_count} Low Risk")
         resp_lines.append(f"• **Average 28-Day Adherence:** {avg_adh}% across cohort")
-        resp_lines.append(f"• **Patients Requiring Attention:** {len(attention_list)} ({', '.join(p['id'] for p in attention_list)})")
-        resp_lines.append(f"• **Key Trajectories:** P-001 (Stable/improving), P-004 (High pain spike), P-002/P-003/P-008 (Attendance drop).")
+        resp_lines.append(f"• **Patients Requiring Attention:** {len(attention_list)} ({', '.join(p['patient_id'] for p in attention_list)})")
+        resp_lines.append(f"• **Key Trajectories:** P-001 (Stable/improving), P-004 (Moderate adherence/improving), P-002/P-003/P-008 (Attendance drop).")
 
     # General fallback response
     else:
         resp_lines.append(f"Based on the **{len(patient_summaries)} patients** currently in the Veno-Pump monitoring cohort:\n")
-        resp_lines.append(f"• {len(attention_list)} patients currently require clinical attention ({', '.join(p['id'] for p in attention_list)}).")
+        resp_lines.append(f"• {len(attention_list)} patients currently require clinical attention ({', '.join(p['patient_id'] for p in attention_list)}).\n")
         resp_lines.append("• You can ask specific questions such as:")
         resp_lines.append("  - *'Which patients need attention this week?'*")
         resp_lines.append("  - *'Summarize P-004.'*")
         resp_lines.append("  - *'Why is P-003 high risk?'*")
         resp_lines.append("  - *'Which patients have declining adherence?'*")
-
 
     final_text = f"{FALLBACK_DISCLAIMER_PREFIX}\n\n" + "\n".join(resp_lines)
 
@@ -486,20 +530,22 @@ def generate_dashboard_cohort_insight(db: Session) -> Dict[str, Any]:
     avg_adh = round(sum(adherence_rates) / len(adherence_rates), 1) if adherence_rates else 0.0
 
     settings = get_settings()
-    model_name = settings.watsonx_model_id or "ibm/granite-13b-instruct-v2"
+    model_name = settings.watsonx_model_id or "ibm/granite-4-h-small"
 
     system_prompt = (
         "You are an AI Clinical Decision Support assistant. "
-        "Summarize the cohort monitoring state for the clinician dashboard in 2-3 concise paragraphs. "
+        "Summarize the cohort monitoring state for the clinician dashboard in 2-3 concise paragraphs strictly using the supplied statistics. "
+        "All numerical metrics are AUTHORITATIVE. Do NOT recalculate percentages or invent patient counts. "
         "Do not diagnose or prescribe. Provide actionable clinical monitoring observations."
     )
     user_prompt = (
-        f"Cohort Summary Statistics:\n"
-        f"- Total Patients: {total_patients}\n"
+        f"Authoritative Cohort Summary Statistics:\n"
+        f"- Total Enrolled Patients: {total_patients}\n"
         f"- Risk Distribution: High={len(high_risk)} ({', '.join(high_risk)}), Medium={len(medium_risk)}, Low={len(low_risk)}\n"
-        f"- Average 28-day Adherence: {avg_adh}%\n"
+        f"- Authoritative Mean 28-Day Adherence: {avg_adh}%\n"
         f"- Pain Deterioration Flags: {', '.join(pain_alerts) if pain_alerts else 'None'}\n"
-        f"- Adherence Collapse Flags: {', '.join(dropouts) if dropouts else 'None'}\n"
+        f"- Adherence Collapse Flags: {', '.join(dropouts) if dropouts else 'None'}\n\n"
+        "Provide concise clinical decision support observations based strictly on these numbers."
     )
 
     watsonx_output = call_watsonx_granite(user_prompt, system_prompt)

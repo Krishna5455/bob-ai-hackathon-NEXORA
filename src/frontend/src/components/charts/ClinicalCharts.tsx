@@ -1,5 +1,5 @@
 /**
- * Shared Recharts-based chart components.
+ * Shared Recharts-based chart components with dark theme styling.
  * All charts include a synthetic-data disclaimer in the caption.
  */
 
@@ -20,9 +20,9 @@ import type { WeeklyAdherencePoint, OutcomePoint } from '@/types/api'
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
 function adherenceColor(pct: number): string {
-  if (pct >= 80) return '#16a34a'
-  if (pct >= 60) return '#d97706'
-  return '#dc2626'
+  if (pct >= 80) return '#10b981'
+  if (pct >= 60) return '#f59e0b'
+  return '#f43f5e'
 }
 
 // ── Weekly Adherence Bar Chart ─────────────────────────────────────────────────
@@ -40,28 +40,35 @@ export function AdherenceBarChart({ data, plannedPerWeek }: AdherenceChartProps)
   }))
 
   return (
-    <div>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis dataKey="week_label" tick={{ fontSize: 11 }} />
-          <YAxis domain={[0, plannedPerWeek + 1]} tick={{ fontSize: 11 }} />
+    <div className="w-full">
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <XAxis dataKey="week_label" tick={{ fontSize: 11, fill: '#94a3b8' }} stroke="#334155" />
+          <YAxis domain={[0, plannedPerWeek + 1]} tick={{ fontSize: 11, fill: '#94a3b8' }} stroke="#334155" />
           <Tooltip
             formatter={(value, name) => [
               value,
-              name === 'completed' ? 'Completed' : 'Missed',
+              name === 'completed' ? 'Completed Sessions' : 'Missed Sessions',
             ]}
-            contentStyle={{ fontSize: 12 }}
+            contentStyle={{
+              backgroundColor: '#091322',
+              borderColor: 'rgba(6, 182, 212, 0.3)',
+              borderRadius: '12px',
+              fontSize: '12px',
+              color: '#f8fafc',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            }}
           />
           <Bar dataKey="completed" name="completed" stackId="a" radius={[0, 0, 0, 0]}>
             {chartData.map((entry, i) => (
               <Cell key={i} fill={adherenceColor(entry.adherence_pct)} />
             ))}
           </Bar>
-          <Bar dataKey="missed_display" name="missed" stackId="a" fill="#fca5a5" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="missed_display" name="missed" stackId="a" fill="#f43f5e88" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
-      <p className="mt-1 text-center text-[10px] text-slate-400">
+      <p className="mt-2 text-center text-[10px] text-slate-400 font-mono">
         ⚠ Synthetic demo data — patient-reported adherence
       </p>
     </div>
@@ -87,39 +94,53 @@ export function OutcomeTrendChart({ data, showComfort = true }: OutcomeChartProp
   }))
 
   return (
-    <div>
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: -20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-          <YAxis domain={[0, 10]} tick={{ fontSize: 11 }} />
-          <Tooltip contentStyle={{ fontSize: 12 }} />
-          <ReferenceLine y={7} stroke="#fca5a5" strokeDasharray="4 2" label={{ value: 'High pain', fontSize: 10, fill: '#dc2626' }} />
+    <div className="w-full">
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: -20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+          <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} stroke="#334155" interval="preserveStartEnd" />
+          <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: '#94a3b8' }} stroke="#334155" />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#091322',
+              borderColor: 'rgba(6, 182, 212, 0.3)',
+              borderRadius: '12px',
+              fontSize: '12px',
+              color: '#f8fafc',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            }}
+          />
+          <ReferenceLine
+            y={7}
+            stroke="#f43f5e"
+            strokeDasharray="4 2"
+            label={{ value: 'High Discomfort (≥7)', fontSize: 10, fill: '#f43f5e', position: 'top' }}
+          />
           <Line
             type="monotone"
             dataKey="pain"
-            name="Pain"
-            stroke="#ef4444"
-            strokeWidth={2}
-            dot={{ r: 3 }}
-            activeDot={{ r: 5 }}
+            name="Reported Discomfort"
+            stroke="#f43f5e"
+            strokeWidth={2.5}
+            dot={{ r: 3, fill: '#f43f5e' }}
+            activeDot={{ r: 6, fill: '#f43f5e' }}
           />
           {showComfort && (
             <Line
               type="monotone"
               dataKey="comfort"
-              name="Comfort"
-              stroke="#16a34a"
-              strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
+              name="Reported Comfort"
+              stroke="#06b6d4"
+              strokeWidth={2.5}
+              dot={{ r: 3, fill: '#06b6d4' }}
+              activeDot={{ r: 6, fill: '#06b6d4' }}
               strokeDasharray="4 2"
             />
           )}
         </LineChart>
       </ResponsiveContainer>
-      <p className="mt-1 text-center text-[10px] text-slate-400">
-        ⚠ Synthetic demo data — patient-reported pain &amp; comfort scores (0–10)
+      <p className="mt-2 text-center text-[10px] text-slate-400 font-mono">
+        ⚠ Synthetic demonstration trajectory — 0 to 10 scale
       </p>
     </div>
   )

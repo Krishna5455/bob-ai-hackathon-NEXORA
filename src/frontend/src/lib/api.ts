@@ -11,6 +11,7 @@ import type {
   PatientAIInsight,
   DashboardAIInsight,
   AssistantResponse,
+  PatientReportResponse,
 } from '@/types/api'
 
 const api = axios.create({
@@ -94,3 +95,11 @@ export async function getHealth(): Promise<{ status: string }> {
   const res = await api.get<{ status: string }>('/health')
   return res.data
 }
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+export async function getPatientReport(id: string): Promise<PatientReportResponse> {
+  const res = await api.get<PatientReportResponse>(`/patients/${id}/report`)
+  return res.data
+}
+

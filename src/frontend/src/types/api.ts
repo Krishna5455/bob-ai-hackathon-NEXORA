@@ -150,3 +150,26 @@ export interface DashboardSummary {
   attention_patients: PatientSummary[]
   recent_insights: AIInsight[]
 }
+
+// ── Patient Clinical Report ───────────────────────────────────────────────────
+
+export interface PatientReportResponse {
+  patient_id: string
+  report: string
+  patient_name?: string
+  age?: number
+  diagnosis?: string
+  start_date?: string
+  planned_sessions_per_week?: number
+  risk_level?: RiskLevel
+  risk_flags?: RiskFlag[]
+  adherence?: AdherenceSummary
+  avg_pain?: number | string
+  avg_comfort?: number | string
+  total_sessions?: number
+  completed_sessions?: number
+  recent_sessions?: TreatmentSession[]
+  ai_insight?: PatientAIInsight | null
+  generated_at?: string
+  disclaimer?: string
+}

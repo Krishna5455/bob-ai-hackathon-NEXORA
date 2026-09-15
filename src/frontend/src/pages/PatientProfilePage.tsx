@@ -15,24 +15,26 @@ import {
   CheckCircle2,
   ShieldCheck,
   RotateCw,
+  FileText,
 } from 'lucide-react'
 import {
   getPatient,
   getPatientOutcomes,
   getPatientAdherenceWeekly,
   getPatientAIInsight,
+  getPatientReport,
 } from '@/lib/api'
 import { RiskBadge } from '@/components/ui/RiskBadge'
 import { SessionStatusBadge } from '@/components/ui/SessionStatusBadge'
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/States'
 import { AdherenceBarChart, OutcomeTrendChart } from '@/components/charts/ClinicalCharts'
+import { PatientReportModal } from '@/components/patient/PatientReportModal'
 import type {
   PatientDetail,
   OutcomePoint,
   AdherenceWeeklySeries,
   PatientAIInsight,
 } from '@/types/api'
-
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
 type Tab = 'overview' | 'sessions' | 'adherence' | 'outcomes' | 'ai-summary'
@@ -41,21 +43,23 @@ type Tab = 'overview' | 'sessions' | 'adherence' | 'outcomes' | 'ai-summary'
 function OverviewTab({ patient }: { patient: PatientDetail }) {
   const adh = patient.adherence
   const trendIcon =
-    adh && adh.week_over_week_trend > 5
-      ? <TrendingUp className="h-4 w-4 text-green-600" />
-      : adh && adh.week_over_week_trend < -5
-        ? <TrendingDown className="h-4 w-4 text-red-600" />
-        : <Minus className="h-4 w-4 text-slate-400" />
+    adh && adh.week_over_week_trend > 5 ? (
+      <TrendingUp className="h-4 w-4 text-emerald-400" />
+    ) : adh && adh.week_over_week_trend < -5 ? (
+      <TrendingDown className="h-4 w-4 text-rose-400" />
+    ) : (
+      <Minus className="h-4 w-4 text-slate-400" />
+    )
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Top row: demographics + adherence snapshot */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Patient Information
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Patient Demographics & Protocol
           </p>
-          <dl className="space-y-2 text-sm">
+          <dl className="space-y-3 text-xs">
             {[
               ['Patient ID', patient.id],
               ['Age', `${patient.age} years`],
@@ -63,89 +67,123 @@ function OverviewTab({ patient }: { patient: PatientDetail }) {
               ['Programme Start', new Date(patient.start_date).toLocaleDateString()],
               ['Planned Sessions', `${patient.planned_sessions_per_week} per week`],
             ].map(([k, v]) => (
-              <div key={String(k)} className="flex justify-between gap-4">
-                <dt className="text-slate-500">{k}</dt>
-                <dd className="text-right font-medium text-slate-900">{v}</dd>
+              <div
+                key={String(k)}
+                className="flex justify-between items-center gap-4 py-1.5 border-b border-slate-800/60 last:border-0"
+              >
+                <dt className="text-slate-400">{k}</dt>
+                <dd className="font-mono font-semibold text-white">{v}</dd>
               </div>
             ))}
           </dl>
         </div>
 
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-4">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Adherence Snapshot (28 Days)
           </p>
           {adh ? (
             <>
               {/* Big adherence number */}
-              <div className="mb-3 flex items-end gap-3">
-                <span className={`text-4xl font-bold ${
-                  adh.adherence_pct >= 80 ? 'text-green-600'
-                  : adh.adherence_pct >= 60 ? 'text-amber-600'
-                  : 'text-red-600'
-                }`}>
-                  {adh.adherence_pct}%
-                </span>
-                <div className="flex items-center gap-1 mb-1 text-xs text-slate-500">
+              <div className="flex items-end justify-between">
+                <div>
+                  <span
+                    className={`text-4xl font-extrabold font-mono tracking-tight ${
+                      adh.adherence_pct >= 80
+                        ? 'text-emerald-400'
+                        : adh.adherence_pct >= 60
+                        ? 'text-amber-400'
+                        : 'text-rose-400'
+                    }`}
+                  >
+                    {adh.adherence_pct}%
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-1">Overall session completion rate</p>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono">
                   {trendIcon}
-                  <span className={
-                    adh.week_over_week_trend > 0 ? 'text-green-600'
-                    : adh.week_over_week_trend < 0 ? 'text-red-600'
-                    : 'text-slate-400'
-                  }>
-                    {adh.week_over_week_trend > 0 ? '+' : ''}{adh.week_over_week_trend}pp WoW
+                  <span
+                    className={
+                      adh.week_over_week_trend > 0
+                        ? 'text-emerald-400'
+                        : adh.week_over_week_trend < 0
+                        ? 'text-rose-400'
+                        : 'text-slate-400'
+                    }
+                  >
+                    {adh.week_over_week_trend > 0 ? '+' : ''}
+                    {adh.week_over_week_trend}pp WoW
                   </span>
                 </div>
               </div>
+
               {/* Progress bar */}
-              <div className="mb-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-900 border border-slate-800">
                 <div
-                  className={`h-full rounded-full transition-all ${
-                    adh.adherence_pct >= 80 ? 'bg-green-500'
-                    : adh.adherence_pct >= 60 ? 'bg-amber-400'
-                    : 'bg-red-500'
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    adh.adherence_pct >= 80
+                      ? 'bg-emerald-400'
+                      : adh.adherence_pct >= 60
+                      ? 'bg-amber-400'
+                      : 'bg-rose-500'
                   }`}
                   style={{ width: `${adh.adherence_pct}%` }}
                 />
               </div>
-              <dl className="space-y-1 text-sm">
-                {[
-                  ['Planned', adh.planned_sessions],
-                  ['Completed', adh.completed_sessions],
-                  ['Missed', adh.missed_sessions],
-                ].map(([k, v]) => (
-                  <div key={String(k)} className="flex justify-between">
-                    <dt className="text-slate-500">{k}</dt>
-                    <dd className="font-medium text-slate-900">{v}</dd>
-                  </div>
-                ))}
-              </dl>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 text-center text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                  <span className="text-[10px] text-slate-400 block">Planned</span>
+                  <span className="font-mono font-bold text-white">{adh.planned_sessions}</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                  <span className="text-[10px] text-slate-400 block">Completed</span>
+                  <span className="font-mono font-bold text-emerald-400">
+                    {adh.completed_sessions}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
+                  <span className="text-[10px] text-slate-400 block">Missed</span>
+                  <span className="font-mono font-bold text-rose-400">{adh.missed_sessions}</span>
+                </div>
+              </div>
             </>
           ) : (
-            <p className="text-sm text-slate-400">No sessions recorded yet.</p>
+            <p className="text-xs text-slate-400">No sessions recorded yet.</p>
           )}
         </div>
       </div>
 
       {/* Risk flags */}
       {patient.risk_flags.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <p className="text-sm font-semibold text-amber-800">
-              Risk Flags ({patient.risk_level.toUpperCase()})
-            </p>
+        <div className="rounded-2xl glass-panel border border-amber-500/30 bg-amber-950/20 p-6 space-y-3">
+          <div className="flex items-center gap-2 text-amber-400">
+            <AlertTriangle className="h-5 w-5" />
+            <h3 className="text-sm font-bold uppercase tracking-wider">
+              Active Clinical Risk Flags ({patient.risk_level.toUpperCase()})
+            </h3>
           </div>
           <ul className="space-y-2">
             {patient.risk_flags.map((f, i) => (
-              <li key={i} className="text-sm text-amber-700">
-                <span className={`mr-2 inline-block rounded px-1.5 py-0.5 text-xs font-bold uppercase ${
-                  f.severity === 'critical' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                }`}>
+              <li
+                key={i}
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950/60 border border-amber-500/20 text-xs text-amber-200"
+              >
+                <span
+                  className={`px-2 py-0.5 rounded font-mono font-bold text-[10px] uppercase ${
+                    f.severity === 'critical'
+                      ? 'bg-rose-950 text-rose-300 border border-rose-500/40'
+                      : 'bg-amber-950 text-amber-300 border border-amber-500/40'
+                  }`}
+                >
                   {f.severity}
                 </span>
-                <span className="font-medium capitalize">{f.flag_type.replace(/_/g, ' ')}:</span>{' '}
-                {f.detail}
+                <div>
+                  <span className="font-bold text-white capitalize">
+                    {f.flag_type.replace(/_/g, ' ')}:
+                  </span>{' '}
+                  <span>{f.detail}</span>
+                </div>
               </li>
             ))}
           </ul>
@@ -154,25 +192,47 @@ function OverviewTab({ patient }: { patient: PatientDetail }) {
 
       {/* Recent sessions mini-list */}
       {patient.sessions.length > 0 && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Recent Activity (Last 5 Sessions)
-          </p>
+        <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Recent Treatment Sessions
+            </p>
+            <span className="text-[11px] font-mono text-slate-400">Last 5 Sessions</span>
+          </div>
           <div className="space-y-2">
             {[...patient.sessions]
-              .sort((a, b) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime())
+              .sort(
+                (a, b) =>
+                  new Date(b.session_date).getTime() - new Date(a.session_date).getTime(),
+              )
               .slice(0, 5)
               .map((s) => (
-                <div key={s.id} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">
-                    {new Date(s.session_date).toLocaleDateString()}
-                  </span>
-                  <SessionStatusBadge status={s.status} />
-                  {s.status === 'completed' && (
-                    <span className={`text-xs ${s.patient_reported_pain >= 7 ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
-                      Pain: {s.patient_reported_pain}/10
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <Calendar className="h-4 w-4 text-cyan-400" />
+                    <span className="font-mono text-slate-300">
+                      {new Date(s.session_date).toLocaleDateString()}
                     </span>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <SessionStatusBadge status={s.status} />
+                    {s.status === 'completed' && (
+                      <span
+                        className={`font-mono text-[11px] font-semibold ${
+                          s.patient_reported_pain >= 7
+                            ? 'text-rose-400'
+                            : s.patient_reported_pain >= 4
+                            ? 'text-amber-400'
+                            : 'text-emerald-400'
+                        }`}
+                      >
+                        Pain: {s.patient_reported_pain}/10
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
           </div>
@@ -181,11 +241,13 @@ function OverviewTab({ patient }: { patient: PatientDetail }) {
 
       {/* Notes */}
       {patient.notes && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Clinical Notes
+        <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            Clinical Notes & Observations
           </p>
-          <p className="text-sm text-slate-700">{patient.notes}</p>
+          <p className="text-xs leading-relaxed text-slate-300 bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+            {patient.notes}
+          </p>
         </div>
       )}
     </div>
@@ -198,43 +260,53 @@ function SessionsTab({ patient }: { patient: PatientDetail }) {
     (a, b) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime(),
   )
   if (sessions.length === 0) return <EmptyState message="No sessions recorded yet." />
+
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-400">⚠ All session data is synthetic demo data.</p>
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-2xl glass-panel border border-slate-800">
+        <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              {['Date', 'Status', 'Duration', 'Pain (0–10)', 'Comfort (0–10)', 'Notes'].map((h) => (
-                <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  {h}
-                </th>
-              ))}
+            <tr className="border-b border-slate-800 bg-[#08101e] text-slate-400 uppercase tracking-wider text-[11px]">
+              {['Date', 'Status', 'Duration', 'Discomfort (0–10)', 'Comfort (0–10)', 'Notes'].map(
+                (h) => (
+                  <th key={h} className="px-5 py-4 font-semibold">
+                    {h}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-800/50">
             {sessions.map((s) => (
-              <tr key={s.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-3 text-slate-700">
+              <tr key={s.id} className="hover:bg-slate-900/60 transition-colors">
+                <td className="px-5 py-3.5 font-mono text-slate-300">
                   {new Date(s.session_date).toLocaleDateString()}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-5 py-3.5">
                   <SessionStatusBadge status={s.status} />
                 </td>
-                <td className="px-4 py-3 text-slate-600">{s.status === 'completed' ? `${s.duration_minutes}m` : '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={s.status !== 'completed' ? 'text-slate-300' :
-                    s.patient_reported_pain >= 7 ? 'font-semibold text-red-600'
-                    : s.patient_reported_pain >= 4 ? 'text-amber-600'
-                    : 'text-green-600'
-                  }>
+                <td className="px-5 py-3.5 font-mono text-slate-400">
+                  {s.status === 'completed' ? `${s.duration_minutes}m` : '—'}
+                </td>
+                <td className="px-5 py-3.5">
+                  <span
+                    className={
+                      s.status !== 'completed'
+                        ? 'text-slate-400'
+                        : s.patient_reported_pain >= 7
+                        ? 'font-mono font-bold text-rose-400'
+                        : s.patient_reported_pain >= 4
+                        ? 'font-mono font-bold text-amber-400'
+                        : 'font-mono font-bold text-emerald-400'
+                    }
+                  >
                     {s.status === 'completed' ? `${s.patient_reported_pain}/10` : '—'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">
+                <td className="px-5 py-3.5 font-mono text-cyan-300">
                   {s.status === 'completed' ? `${s.patient_reported_comfort}/10` : '—'}
                 </td>
-                <td className="px-4 py-3 text-xs text-slate-400 max-w-48 truncate">
+                <td className="px-5 py-3.5 text-slate-400 max-w-56 truncate">
                   {s.notes || '—'}
                 </td>
               </tr>
@@ -242,70 +314,113 @@ function SessionsTab({ patient }: { patient: PatientDetail }) {
           </tbody>
         </table>
       </div>
+      <p className="text-[11px] text-slate-400 font-mono">⚠ All session data is synthetic demonstration telemetry.</p>
     </div>
   )
 }
 
 // ── Adherence tab ─────────────────────────────────────────────────────────────
-function AdherenceTab({ patientId, plannedPerWeek }: { patientId: string; plannedPerWeek: number }) {
+function AdherenceTab({
+  patientId,
+  plannedPerWeek,
+}: {
+  patientId: string
+  plannedPerWeek: number
+}) {
   const { data, isLoading } = useQuery<AdherenceWeeklySeries>({
     queryKey: ['adherence-weekly', patientId],
     queryFn: () => getPatientAdherenceWeekly(patientId, 6),
   })
 
-  if (isLoading) return <LoadingState message="Loading adherence data…" />
+  if (isLoading) return <LoadingState message="Loading adherence longitudinal series…" />
   if (!data) return <EmptyState message="No adherence data available." />
 
   const adh = data.overall_summary
-  const trendColor = adh.week_over_week_trend > 0 ? 'text-green-600' : adh.week_over_week_trend < 0 ? 'text-red-600' : 'text-slate-600'
+  const trendColor =
+    adh.week_over_week_trend > 0
+      ? 'text-emerald-400'
+      : adh.week_over_week_trend < 0
+      ? 'text-rose-400'
+      : 'text-slate-300'
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-4">
         {[
           { label: 'Adherence Rate', value: `${adh.adherence_pct}%`, sub: 'last 28 days' },
-          { label: 'Completed', value: adh.completed_sessions, sub: `of ${adh.planned_sessions} planned` },
+          {
+            label: 'Completed',
+            value: adh.completed_sessions,
+            sub: `of ${adh.planned_sessions} planned`,
+          },
           { label: 'Missed', value: adh.missed_sessions, sub: 'last 28 days' },
-          { label: 'WoW Trend', value: `${adh.week_over_week_trend > 0 ? '+' : ''}${adh.week_over_week_trend}pp`, sub: adh.week_over_week_trend >= 0 ? 'Stable/improving' : 'Declining' },
+          {
+            label: 'WoW Trend',
+            value: `${adh.week_over_week_trend > 0 ? '+' : ''}${adh.week_over_week_trend}pp`,
+            sub: adh.week_over_week_trend >= 0 ? 'Stable / improving' : 'Declining alert',
+          },
         ].map(({ label, value, sub }) => (
-          <div key={label} className="rounded-lg border border-slate-200 bg-white p-4 text-center">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className={`mt-1 text-2xl font-semibold ${label === 'WoW Trend' ? trendColor : 'text-slate-900'}`}>{value}</p>
-            <p className="text-xs text-slate-400">{sub}</p>
+          <div
+            key={label}
+            className="rounded-2xl glass-panel p-5 border border-slate-800 text-center"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              {label}
+            </p>
+            <p
+              className={`mt-1.5 text-3xl font-extrabold font-mono ${
+                label === 'WoW Trend' ? trendColor : 'text-white'
+              }`}
+            >
+              {value}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">{sub}</p>
           </div>
         ))}
       </div>
 
       {/* Weekly bar chart */}
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="mb-3 text-sm font-semibold text-slate-700">Weekly Adherence (Last 6 Weeks)</p>
+      <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-4">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-300">
+          Weekly Longitudinal Adherence (Last 6 Weeks)
+        </p>
         <AdherenceBarChart data={data.weeks} plannedPerWeek={plannedPerWeek} />
       </div>
 
       {/* Weekly breakdown table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl glass-panel border border-slate-800">
+        <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              {['Week', 'Planned', 'Completed', 'Missed', 'Rate'].map((h) => (
-                <th key={h} className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{h}</th>
+            <tr className="border-b border-slate-800 bg-[#08101e] text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
+              {['Week Window', 'Planned', 'Completed', 'Missed', 'Adherence Rate'].map((h) => (
+                <th key={h} className="px-5 py-3.5">
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-800/50">
             {[...data.weeks].reverse().map((w) => (
-              <tr key={w.week_start} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2 text-slate-600">{w.week_label}</td>
-                <td className="px-4 py-2 text-slate-600">{w.planned}</td>
-                <td className="px-4 py-2 text-green-700 font-medium">{w.completed}</td>
-                <td className="px-4 py-2 text-red-600">{w.missed}</td>
-                <td className="px-4 py-2">
-                  <span className={`font-medium ${
-                    w.adherence_pct >= 80 ? 'text-green-600'
-                    : w.adherence_pct >= 60 ? 'text-amber-600'
-                    : 'text-red-600'
-                  }`}>{w.adherence_pct}%</span>
+              <tr key={w.week_start} className="hover:bg-slate-900/60 transition-colors">
+                <td className="px-5 py-3 font-mono text-slate-300">{w.week_label}</td>
+                <td className="px-5 py-3 font-mono text-slate-400">{w.planned}</td>
+                <td className="px-5 py-3 font-mono text-emerald-400 font-semibold">
+                  {w.completed}
+                </td>
+                <td className="px-5 py-3 font-mono text-rose-400">{w.missed}</td>
+                <td className="px-5 py-3">
+                  <span
+                    className={`font-mono font-bold ${
+                      w.adherence_pct >= 80
+                        ? 'text-emerald-400'
+                        : w.adherence_pct >= 60
+                        ? 'text-amber-400'
+                        : 'text-rose-400'
+                    }`}
+                  >
+                    {w.adherence_pct}%
+                  </span>
                 </td>
               </tr>
             ))}
@@ -323,89 +438,89 @@ function OutcomesTab({ patientId }: { patientId: string }) {
     queryFn: () => getPatientOutcomes(patientId),
   })
 
-  if (isLoading) return <LoadingState message="Loading outcomes…" />
-  if (!data || data.length === 0) return <EmptyState message="No completed sessions with outcome data." />
+  if (isLoading) return <LoadingState message="Loading patient outcomes trajectory…" />
+  if (!data || data.length === 0)
+    return <EmptyState message="No completed sessions with reported outcome data." />
 
   const pains = data.map((d) => d.pain)
   const comforts = data.map((d) => d.comfort)
   const avgPain = (pains.reduce((a, b) => a + b, 0) / pains.length).toFixed(1)
   const avgComfort = (comforts.reduce((a, b) => a + b, 0) / comforts.length).toFixed(1)
   const painTrend = pains[pains.length - 1] - pains[0]
-  const comfortTrend = comforts[comforts.length - 1] - comforts[0]
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Summary stats */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-center">
-          <p className="text-xs text-slate-500">Avg Pain Score</p>
-          <p className={`mt-1 text-3xl font-bold ${Number(avgPain) >= 7 ? 'text-red-600' : Number(avgPain) >= 4 ? 'text-amber-600' : 'text-green-600'}`}>
-            {avgPain}<span className="text-sm font-normal text-slate-400">/10</span>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl glass-panel p-5 border border-slate-800 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Avg Discomfort Score
           </p>
-          <p className="text-xs text-slate-400">across {data.length} sessions</p>
+          <p
+            className={`mt-1.5 text-3xl font-extrabold font-mono ${
+              Number(avgPain) >= 7
+                ? 'text-rose-400'
+                : Number(avgPain) >= 4
+                ? 'text-amber-400'
+                : 'text-emerald-400'
+            }`}
+          >
+            {avgPain}
+            <span className="text-xs font-normal text-slate-400">/10</span>
+          </p>
+          <p className="text-[11px] text-slate-400 mt-1">across {data.length} sessions</p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-center">
-          <p className="text-xs text-slate-500">Avg Comfort Score</p>
-          <p className="mt-1 text-3xl font-bold text-slate-900">
-            {avgComfort}<span className="text-sm font-normal text-slate-400">/10</span>
+
+        <div className="rounded-2xl glass-panel p-5 border border-slate-800 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Avg Comfort Score
           </p>
-          <p className="text-xs text-slate-400">across {data.length} sessions</p>
+          <p className="mt-1.5 text-3xl font-extrabold font-mono text-cyan-400">
+            {avgComfort}
+            <span className="text-xs font-normal text-slate-400">/10</span>
+          </p>
+          <p className="text-[11px] text-slate-400 mt-1">patient-reported tolerance</p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4 text-center">
-          <p className="text-xs text-slate-500">Pain Trend</p>
-          <p className={`mt-1 text-3xl font-bold ${painTrend < 0 ? 'text-green-600' : painTrend > 0 ? 'text-red-600' : 'text-slate-600'}`}>
-            {painTrend > 0 ? '+' : ''}{painTrend.toFixed(1)}
+
+        <div className="rounded-2xl glass-panel p-5 border border-slate-800 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Pain Trajectory
           </p>
-          <p className={`text-xs ${painTrend < 0 ? 'text-green-600' : painTrend > 0 ? 'text-red-600' : 'text-slate-400'}`}>
-            {painTrend < -1 ? 'Improving' : painTrend > 1 ? 'Worsening' : 'Stable'}
+          <p
+            className={`mt-1.5 text-3xl font-extrabold font-mono ${
+              painTrend < 0 ? 'text-emerald-400' : painTrend > 0 ? 'text-rose-400' : 'text-slate-300'
+            }`}
+          >
+            {painTrend > 0 ? '+' : ''}
+            {painTrend.toFixed(1)}
+          </p>
+          <p
+            className={`text-[11px] mt-1 ${
+              painTrend < -1 ? 'text-emerald-400' : painTrend > 1 ? 'text-rose-400' : 'text-slate-400'
+            }`}
+          >
+            {painTrend < -1 ? 'Improving' : painTrend > 1 ? 'Worsening Alert' : 'Stable'}
           </p>
         </div>
       </div>
 
       {/* Line chart */}
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-slate-700">Pain &amp; Comfort Trend</p>
-          <div className="flex gap-4 text-xs text-slate-500">
-            <span className="flex items-center gap-1"><span className="inline-block h-2 w-4 rounded bg-red-400" /> Pain</span>
-            <span className="flex items-center gap-1"><span className="inline-block h-2 w-4 rounded bg-green-500 opacity-60" style={{borderTop: '2px dashed #16a34a', background: 'none'}} /> Comfort</span>
+      <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            Discomfort & Comfort Longitudinal Trend
+          </p>
+          <div className="flex gap-4 text-xs font-mono">
+            <span className="flex items-center gap-1.5 text-rose-400">
+              <span className="inline-block h-2 w-3 rounded-full bg-rose-500" /> Discomfort
+            </span>
+            <span className="flex items-center gap-1.5 text-cyan-400">
+              <span className="inline-block h-2 w-3 rounded-full bg-cyan-400" /> Comfort
+            </span>
           </div>
         </div>
         <OutcomeTrendChart data={data} showComfort={true} />
       </div>
-
-      {/* Data table */}
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 text-left">
-              {['Session Date', 'Pain (0–10)', 'Comfort (0–10)'].map((h) => (
-                <th key={h} className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {[...data].reverse().map((row) => (
-              <tr key={row.session_date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                <td className="px-4 py-2 text-slate-600">{new Date(row.session_date).toLocaleDateString()}</td>
-                <td className="px-4 py-2">
-                  <span className={row.pain >= 7 ? 'font-semibold text-red-600' : row.pain >= 4 ? 'text-amber-600' : 'text-green-600'}>
-                    {row.pain}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-slate-600">{row.comfort}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {comfortTrend !== 0 && (
-        <p className="text-xs text-slate-500">
-          Comfort trend: {comfortTrend > 0 ? '+' : ''}{comfortTrend.toFixed(1)} pts (first vs last session).
-          {comfortTrend > 1 ? ' Comfort improving.' : comfortTrend < -1 ? ' Comfort declining — review recommended.' : ''}
-        </p>
-      )}
     </div>
   )
 }
@@ -415,23 +530,23 @@ function AISummaryTab({ patientId }: { patientId: string }) {
   const { data: insight, isLoading, isError, refetch, isFetching } = useQuery<PatientAIInsight>({
     queryKey: ['patient-ai-insight', patientId],
     queryFn: () => getPatientAIInsight(patientId),
-    enabled: false, // On-demand generation via button
+    enabled: false,
   })
 
   return (
     <div className="space-y-6">
       {/* Header action bar */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="rounded-2xl glass-panel border border-cyan-500/30 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-950/80 text-cyan-400 border border-cyan-500/40 shadow-md">
             <Brain className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900">
-              IBM watsonx.ai Clinical Intelligence Layer
+            <h2 className="text-base font-bold text-white">
+              IBM watsonx.ai Clinical Intelligence Synthesis
             </h2>
-            <p className="text-xs text-slate-500">
-              Automated pattern synthesis and clinical decision support for rehabilitation monitoring
+            <p className="text-xs text-slate-400">
+              Automated pattern synthesis and decision support for rehabilitation triage
             </p>
           </div>
         </div>
@@ -440,7 +555,7 @@ function AISummaryTab({ patientId }: { patientId: string }) {
           type="button"
           onClick={() => refetch()}
           disabled={isLoading || isFetching}
-          className="flex items-center justify-center gap-2 rounded-xl bg-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-purple-700 active:scale-[0.99] transition-all disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-cyan-500/25 hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-50"
         >
           {isLoading || isFetching ? (
             <>
@@ -456,119 +571,104 @@ function AISummaryTab({ patientId }: { patientId: string }) {
         </button>
       </div>
 
-      {/* Initial state before generation */}
+      {/* Initial state */}
       {!insight && !isLoading && !isFetching && !isError && (
-        <div className="rounded-xl border border-dashed border-purple-200 bg-purple-50/40 p-8 text-center space-y-3">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+        <div className="rounded-2xl border border-dashed border-cyan-500/30 bg-[#081224]/50 p-10 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-950 text-cyan-400 border border-cyan-500/30">
             <Sparkles className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-bold text-slate-900">
+          <h3 className="text-base font-bold text-white">
             Ready to Generate Clinical Decision Support Summary
           </h3>
-          <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+          <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
             Click <strong>"Generate AI Clinical Insight"</strong> above to trigger Granite model
-            inference across patient adherence records, pain scores, session completion patterns,
-            and active risk flags.
+            synthesis across adherence records, pain scores, session completion patterns, and active risk flags.
           </p>
         </div>
       )}
 
       {/* Loading state */}
       {(isLoading || isFetching) && (
-        <div className="rounded-xl border border-purple-100 bg-white p-8 shadow-sm text-center space-y-4">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-600 animate-spin">
-            <RotateCw className="h-5 w-5" />
-          </div>
+        <div className="rounded-2xl glass-panel p-10 text-center space-y-4">
+          <RotateCw className="h-8 w-8 animate-spin mx-auto text-cyan-400" />
           <div>
-            <p className="text-sm font-semibold text-slate-800">
-              Running Clinical Synthesis Model...
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-sm font-semibold text-white">Running Clinical Synthesis Model...</p>
+            <p className="text-xs text-slate-400 mt-1">
               Evaluating 28-day adherence trends, consecutive session gaps, and pain outcome trajectories.
             </p>
           </div>
         </div>
       )}
 
-      {/* Error state */}
-      {isError && !isLoading && !isFetching && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">
-          <p className="font-semibold">Unable to fetch AI insight.</p>
-          <p className="text-xs text-red-600 mt-1">
-            Please ensure the backend is running and try again.
-          </p>
-        </div>
-      )}
-
-      {/* Generated Insight Display */}
+      {/* Generated Insight */}
       {insight && (
-        <div className="space-y-5 animate-in fade-in duration-300">
+        <div className="space-y-6">
           {/* Provider Badge Bar */}
-          <div className="flex items-center justify-between rounded-lg bg-slate-100 px-4 py-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-900 border border-slate-800 px-4 py-2 text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-700">AI Intelligence Provider:</span>
+              <span className="font-semibold text-slate-400">Provider:</span>
               <span
-                className={`font-mono font-bold px-2 py-0.5 rounded ${
+                className={`font-mono font-bold px-2.5 py-0.5 rounded text-[11px] ${
                   insight.provider === 'watsonx-granite'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-amber-100 text-amber-800'
+                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/30'
+                    : 'bg-amber-950 text-amber-300 border border-amber-500/30'
                 }`}
               >
                 {insight.provider === 'watsonx-granite'
-                  ? 'IBM watsonx.ai / Granite'
+                  ? 'IBM watsonx.ai / Granite (ibm/granite-13b-instruct-v2)'
                   : 'Demo AI Insight — watsonx.ai not configured'}
               </span>
             </div>
-            <span className="text-slate-500 font-mono text-[11px]">Model: {insight.model_used}</span>
+            <span className="text-slate-400 font-mono text-[11px]">
+              Model: {insight.model_used}
+            </span>
           </div>
 
-          {/* Overall Status Card */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
+          {/* Overall Status */}
+          <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Overall Patient Clinical Status
               </h3>
               <RiskBadge level={insight.risk_level as any} compact />
             </div>
-            <p className="text-sm leading-relaxed text-slate-800 font-medium bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <p className="text-xs leading-relaxed text-slate-200 bg-slate-950/70 p-4 rounded-xl border border-cyan-500/20">
               {insight.status}
             </p>
           </div>
 
-          {/* Grid: Observed Trends & Attention Factors */}
-          <div className="grid gap-5 md:grid-cols-2">
-            {/* Key Observed Trends */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <TrendingUp className="h-4 w-4 text-brand-600" />
+          {/* Grid: Trends & Factors */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-cyan-400" />
                 Key Observed Trends
               </h3>
               <ul className="space-y-2">
                 {insight.key_trends.map((trend, idx) => (
                   <li
                     key={idx}
-                    className="flex items-start gap-2 text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg"
+                    className="flex items-start gap-2 text-xs text-slate-300 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80"
                   >
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
                     <span>{trend}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Attention Factors */}
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <div className="rounded-2xl glass-panel p-6 border border-slate-800 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
                 Factors Requiring Clinician Attention
               </h3>
               <ul className="space-y-2">
                 {insight.attention_factors.map((factor, idx) => (
                   <li
                     key={idx}
-                    className="flex items-start gap-2 text-xs text-slate-700 bg-amber-50/60 border border-amber-100 p-2.5 rounded-lg"
+                    className="flex items-start gap-2 text-xs text-amber-200 bg-amber-950/30 border border-amber-500/20 p-3 rounded-xl"
                   >
-                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+                    <AlertTriangle className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
                     <span>{factor}</span>
                   </li>
                 ))}
@@ -576,20 +676,18 @@ function AISummaryTab({ patientId }: { patientId: string }) {
             </div>
           </div>
 
-          {/* Suggested Clinical Review / Action */}
-          <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-6 shadow-sm space-y-2">
-            <h3 className="text-sm font-bold text-purple-900 flex items-center gap-2">
-              <Brain className="h-4 w-4 text-purple-700" />
+          {/* Suggested Clinical Action */}
+          <div className="rounded-2xl glass-panel border border-cyan-500/30 p-6 space-y-2 bg-gradient-to-r from-cyan-950/20 to-blue-950/20">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-2">
+              <Brain className="h-4 w-4 text-cyan-400" />
               Suggested Clinical Decision-Support Action
             </h3>
-            <p className="text-xs text-purple-900 leading-relaxed font-medium">
-              {insight.suggested_review}
-            </p>
+            <p className="text-xs text-slate-200 leading-relaxed">{insight.suggested_review}</p>
           </div>
 
           {/* Medical Safety Disclaimer */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] text-slate-500 flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-slate-400 shrink-0" />
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-[11px] text-slate-400 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-cyan-500 shrink-0" />
             <span>{insight.disclaimer}</span>
           </div>
         </div>
@@ -607,10 +705,10 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'ai-summary', label: 'AI Clinical Insight' },
 ]
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function PatientProfilePage() {
   const { id } = useParams<{ id: string }>()
   const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [isReportOpen, setIsReportOpen] = useState(false)
 
   const { data: patient, isLoading, error } = useQuery<PatientDetail>({
     queryKey: ['patient', id],
@@ -618,71 +716,110 @@ export default function PatientProfilePage() {
     enabled: !!id,
   })
 
-  if (isLoading) return <LoadingState message="Loading patient profile…" />
+  // Report: only fetched once the modal is opened
+  const {
+    data: reportData,
+    isFetching: isReportLoading,
+    isError: isReportError,
+    refetch: refetchReport,
+  } = useQuery({
+    queryKey: ['patient-report', id],
+    queryFn: () => getPatientReport(id!),
+    enabled: isReportOpen && !!id,
+    staleTime: 2 * 60 * 1000, // cache for 2 min so re-opens are instant
+    retry: 1,
+  })
+
+  if (isLoading) return <LoadingState message="Loading patient clinical profile…" />
   if (error || !patient)
     return <ErrorState message={`Patient ${id ?? ''} not found or backend unavailable.`} />
 
   return (
-    <div className="p-8">
-      {/* Breadcrumb */}
-      <div className="mb-5 flex items-center gap-2 text-sm text-slate-500">
-        <Link to="/patients" className="flex items-center gap-1 hover:text-slate-700">
-          <ArrowLeft className="h-3.5 w-3.5" />
+    <div className="p-6 sm:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Breadcrumbs */}
+      <nav className="animate-cs-fade-in-up flex items-center gap-2 text-xs text-slate-400 font-medium">
+        <Link to="/dashboard" className="hover:text-cyan-300 transition-colors">
+          Dashboard
+        </Link>
+        <span>/</span>
+        <Link to="/patients" className="hover:text-cyan-300 transition-colors">
           Patients
         </Link>
         <span>/</span>
-        <span className="text-slate-900 font-medium">{patient.name}</span>
-      </div>
+        <span className="text-cyan-400 font-semibold">{patient.id}</span>
+      </nav>
 
-      {/* Patient header */}
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+      {/* Patient Header Card */}
+      <div className="animate-cs-fade-in-up cs-stagger-1 rounded-3xl glass-panel p-6 sm:p-8 border border-slate-800 shadow-2xl flex flex-wrap items-start justify-between gap-6 cs-card">
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-            <User className="h-5 w-5" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20">
+            <User className="h-7 w-7" />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-semibold text-slate-900">{patient.name}</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{patient.name}</h1>
               <RiskBadge level={patient.risk_level} />
               {patient.is_demo && (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                  Demo Patient
+                <span className="rounded-full bg-cyan-950/80 px-2.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-cyan-500/30">
+                  Demo Synthetic Record
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-sm text-slate-500">{patient.diagnosis}</p>
-            <p className="text-xs text-slate-400">
+            <p className="mt-1 text-sm font-medium text-slate-300">{patient.diagnosis}</p>
+            <p className="text-xs text-slate-400 font-mono mt-1">
               {patient.id} · Age {patient.age} · Programme started{' '}
               {new Date(patient.start_date).toLocaleDateString()}
             </p>
           </div>
         </div>
-        <Link
-          to={`/patients/${patient.id}/session`}
-          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-600 transition-colors"
-        >
-          <Play className="h-4 w-4" />
-          Start Session
-        </Link>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to="/patients"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-900 border border-slate-800 hover:border-slate-700 hover:text-white transition-all shadow-sm"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>All Patients</span>
+          </Link>
+
+          {/* Generate Report Button */}
+          <button
+            type="button"
+            onClick={() => setIsReportOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:text-white hover:border-cyan-500/60 hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
+            title="Generate clinical summary report"
+          >
+            <FileText className="h-3.5 w-3.5 text-cyan-400" />
+            <span>Generate Report</span>
+          </button>
+
+          <Link
+            to={`/patients/${patient.id}/session`}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-300 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-md shadow-cyan-500/25 hover:brightness-110 transition-all cursor-pointer"
+          >
+            <Play className="h-4 w-4 fill-slate-950" />
+            <span>Start Treatment Simulator</span>
+          </Link>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="mb-5 border-b border-slate-200">
-        <nav className="-mb-px flex gap-1 overflow-x-auto">
+      <div className="animate-cs-fade-in-up cs-stagger-2 border-b border-slate-800">
+        <nav className="-mb-px flex gap-2 overflow-x-auto">
           {TABS.map(({ id: tabId, label }) => (
             <button
               key={tabId}
               onClick={() => setActiveTab(tabId)}
-              className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors border-b-2 ${
+              className={`whitespace-nowrap px-5 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
                 activeTab === tabId
-                  ? 'border-brand-500 text-brand-700'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                  ? 'border-cyan-400 text-cyan-300 bg-cyan-950/30 rounded-t-xl shadow-[0_-2px_10px_rgba(6,182,212,0.15)]'
+                  : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-700'
               }`}
             >
               {label}
               {tabId === 'ai-summary' && (
-                <span className="ml-1.5 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold text-purple-700">
-                  AI
+                <span className="ml-2 rounded-full bg-cyan-950 px-2 py-0.5 text-[9px] font-mono font-bold text-cyan-400 border border-cyan-500/30">
+                  Granite AI
                 </span>
               )}
             </button>
@@ -690,18 +827,33 @@ export default function PatientProfilePage() {
         </nav>
       </div>
 
-      {/* Tab content */}
-      {activeTab === 'overview' && <OverviewTab patient={patient} />}
-      {activeTab === 'sessions' && <SessionsTab patient={patient} />}
-      {activeTab === 'adherence' && <AdherenceTab patientId={patient.id} plannedPerWeek={patient.planned_sessions_per_week} />}
-      {activeTab === 'outcomes' && <OutcomesTab patientId={patient.id} />}
-      {activeTab === 'ai-summary' && <AISummaryTab patientId={patient.id} />}
+      {/* Tab Content */}
+      <div className="pt-2 animate-cs-fade-in">
+        {activeTab === 'overview' && <OverviewTab patient={patient} />}
+        {activeTab === 'sessions' && <SessionsTab patient={patient} />}
+        {activeTab === 'adherence' && (
+          <AdherenceTab
+            patientId={patient.id}
+            plannedPerWeek={patient.planned_sessions_per_week}
+          />
+        )}
+        {activeTab === 'outcomes' && <OutcomesTab patientId={patient.id} />}
+        {activeTab === 'ai-summary' && <AISummaryTab patientId={patient.id} />}
+      </div>
 
-
-      <p className="mt-8 text-xs text-slate-400">
-        <Calendar className="mr-1 inline h-3 w-3" />
-        ⚠ All data shown is synthetic demo data. Not a real patient record.
+      <p className="text-center text-xs text-slate-400 pt-4">
+        ⚠ All data shown is synthetic demo data. Decision support only — not a validated medical diagnosis.
       </p>
+
+      {/* Patient Report Modal */}
+      <PatientReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        reportData={reportData}
+        isLoading={isReportLoading}
+        isError={isReportError}
+        onRetry={() => refetchReport()}
+      />
     </div>
   )
 }

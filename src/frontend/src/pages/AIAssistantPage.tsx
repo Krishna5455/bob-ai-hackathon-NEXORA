@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import {
   Send,
@@ -8,7 +9,8 @@ import {
   RotateCw,
   ShieldCheck,
   HelpCircle,
-  Clock,
+  ArrowLeft,
+  Brain,
 } from 'lucide-react'
 import { askAIAssistant } from '@/lib/api'
 import type { AssistantResponse } from '@/types/api'
@@ -111,27 +113,57 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-6 flex flex-col h-[calc(100vh-4rem)]">
-      {/* Page Header */}
-      <div className="flex items-center justify-between shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">Clinician AI Assistant</h1>
-            <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-bold text-purple-800 uppercase tracking-wider">
-              IBM watsonx.ai
-            </span>
+    <div className="p-6 sm:p-8 max-w-6xl mx-auto space-y-6 flex flex-col h-[calc(100vh-4rem)]">
+      {/* Breadcrumbs Navigation */}
+      <nav className="animate-cs-fade-in-up flex items-center justify-between text-xs text-slate-400 font-medium shrink-0">
+        <div className="flex items-center gap-2">
+          <Link to="/dashboard" className="hover:text-cyan-300 transition-colors">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <span className="text-cyan-400 font-semibold">AI Assistant</span>
+        </div>
+
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-cyan-300 transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to Dashboard</span>
+        </Link>
+      </nav>
+
+      {/* Page Header Card */}
+      <div className="animate-cs-fade-in-up cs-stagger-1 rounded-3xl glass-panel p-6 border border-slate-800 shadow-2xl flex flex-wrap items-center justify-between gap-4 shrink-0 cs-card">
+        <div className="flex items-center gap-3.5">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+            <Brain className="h-6 w-6" />
           </div>
-          <p className="mt-1 text-xs text-slate-500">
-            Natural language query engine grounded in panel adherence, outcomes, and risk telemetry
-          </p>
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-extrabold text-white">
+                Clinician AI Assistant
+              </h1>
+              <span className="rounded-full bg-cyan-950 px-2.5 py-0.5 text-[10px] font-mono font-bold text-cyan-300 border border-cyan-500/30">
+                IBM watsonx.ai / Granite
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Natural language clinical inquiry grounded in panel adherence, outcomes, and risk telemetry
+            </p>
+          </div>
+        </div>
+
+        <div className="text-[11px] font-mono text-cyan-400 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+          Model: ibm/granite-13b-instruct-v2
         </div>
       </div>
 
       {/* Suggested Quick Prompt Chips */}
-      <div className="shrink-0 space-y-1.5">
-        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-          <HelpCircle className="h-3 w-3" />
-          Example Clinician Queries:
+      <div className="shrink-0 space-y-2">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+          <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
+          Suggested Clinician Inquiries:
         </span>
         <div className="flex flex-wrap gap-2">
           {EXAMPLE_QUESTIONS.map((q, i) => (
@@ -140,90 +172,80 @@ export default function AIAssistantPage() {
               type="button"
               onClick={() => handleSend(q)}
               disabled={askMutation.isPending}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800 transition-all active:scale-[0.98] disabled:opacity-50"
+              className="rounded-xl border border-slate-800 bg-[#0a1324]/80 px-3.5 py-1.5 text-xs text-slate-300 hover:border-cyan-500/50 hover:text-cyan-300 hover:bg-slate-900 transition-all disabled:opacity-50"
             >
-              <Sparkles className="inline h-3 w-3 mr-1 text-brand-600" />
               {q}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Chat Messages Container */}
-      <div className="flex-1 overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex gap-3.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {/* Assistant Avatar */}
-            {msg.sender === 'assistant' && (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 border border-purple-200">
-                <Bot className="h-5 w-5" />
-              </div>
-            )}
+      {/* Main Chat Scroll Container */}
+      <div className="flex-1 overflow-y-auto rounded-3xl glass-panel p-6 border border-slate-800 space-y-4 shadow-inner">
+        {messages.map((msg) => {
+          const isUser = msg.sender === 'user'
 
-            {/* Message Bubble */}
+          return (
             <div
-              className={`max-w-2xl rounded-2xl p-4 text-xs leading-relaxed space-y-2 ${
-                msg.sender === 'user'
-                  ? 'bg-brand-600 text-white rounded-br-none shadow-sm'
-                  : 'bg-slate-50 text-slate-800 border border-slate-200/80 rounded-bl-none'
-              }`}
+              key={msg.id}
+              className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
             >
-              {/* Header with provider tag for assistant */}
-              {msg.sender === 'assistant' && msg.provider && msg.provider !== 'error' && (
-                <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-1.5 text-[10px] text-slate-400">
-                  <span
-                    className={`font-semibold font-mono px-1.5 py-0.5 rounded ${
-                      msg.provider === 'watsonx-granite'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {msg.provider === 'watsonx-granite'
-                      ? 'IBM watsonx.ai / Granite'
-                      : 'Demo AI Assistant — watsonx.ai not configured'}
-                  </span>
-                  <span className="flex items-center gap-1 font-mono">
-                    <Clock className="h-2.5 w-2.5" />
-                    {msg.timestamp}
-                  </span>
+              {!isUser && (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-950/80 text-cyan-400 border border-cyan-500/30 mt-0.5">
+                  <Bot className="h-4 w-4" />
                 </div>
               )}
 
-              {/* Text formatting */}
-              <div className="whitespace-pre-wrap font-sans space-y-1">
-                {msg.text}
+              <div
+                className={`max-w-2xl rounded-2xl p-4.5 space-y-2 text-xs sm:text-sm leading-relaxed ${
+                  isUser
+                    ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tr-none shadow-md'
+                    : 'bg-slate-950/90 text-slate-200 border border-slate-800/80 rounded-tl-none shadow-md'
+                }`}
+              >
+                {/* Header for assistant message */}
+                {!isUser && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2 text-[11px] text-slate-400">
+                    <span className="font-bold text-cyan-400 flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      Veno-Pump AI Intelligence
+                    </span>
+                    <span className="font-mono text-[10px]">{msg.timestamp}</span>
+                  </div>
+                )}
+
+                {/* Body Text */}
+                <div className="whitespace-pre-wrap font-sans">
+                  {msg.text}
+                </div>
+
+                {/* Footer disclaimer for assistant */}
+                {!isUser && msg.disclaimer && (
+                  <div className="mt-2 pt-2 border-t border-slate-900 flex items-start gap-1.5 text-[10px] text-slate-400 italic">
+                    <ShieldCheck className="h-3.5 w-3.5 text-cyan-500 shrink-0 mt-0.5" />
+                    <span>{msg.disclaimer}</span>
+                  </div>
+                )}
               </div>
 
-              {/* Safety disclaimer for assistant */}
-              {msg.sender === 'assistant' && msg.disclaimer && (
-                <div className="pt-2 border-t border-slate-200/60 text-[10px] text-slate-400 flex items-center gap-1 italic">
-                  <ShieldCheck className="h-3 w-3 shrink-0" />
-                  <span>{msg.disclaimer}</span>
+              {isUser && (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-900 text-white mt-0.5">
+                  <User className="h-4 w-4" />
                 </div>
               )}
             </div>
+          )
+        })}
 
-            {/* User Avatar */}
-            {msg.sender === 'user' && (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
-                <User className="h-5 w-5" />
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* Loading typing bubble */}
+        {/* Loading Bubble */}
         {askMutation.isPending && (
-          <div className="flex gap-3.5 justify-start animate-in fade-in duration-200">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-700 border border-purple-200">
-              <Bot className="h-5 w-5" />
+          <div className="flex gap-3 justify-start">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-950 text-cyan-400 border border-cyan-500/30">
+              <Bot className="h-4 w-4" />
             </div>
-            <div className="rounded-2xl rounded-bl-none bg-slate-50 border border-slate-200 p-4 text-xs text-slate-600 flex items-center gap-2">
-              <RotateCw className="h-3.5 w-3.5 animate-spin text-purple-600" />
-              <span>Analyzing patient cohort database with Granite model...</span>
+            <div className="rounded-2xl rounded-tl-none bg-slate-950/90 border border-slate-800 p-4 text-xs text-slate-300 flex items-center gap-2">
+              <RotateCw className="h-4 w-4 animate-spin text-cyan-400" />
+              <span>Analyzing patient cohort records with Granite AI...</span>
             </div>
           </div>
         )}
@@ -231,37 +253,27 @@ export default function AIAssistantPage() {
         <div ref={chatBottomRef} />
       </div>
 
-      {/* Input Bar */}
-      <div className="shrink-0 bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex items-center gap-3">
+      {/* Query Input Box */}
+      <div className="shrink-0 rounded-2xl glass-panel p-3 border border-slate-800 flex items-center gap-3">
         <input
           type="text"
           value={inputQuery}
           onChange={(e) => setInputQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a clinical question (e.g. 'Summarize P-004', 'Why is P-003 high risk?')..."
+          placeholder="Ask a clinical question about patients, adherence trends, or risk flags…"
           disabled={askMutation.isPending}
-          className="flex-1 bg-transparent px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          className="flex-1 bg-transparent px-3 py-2 text-xs sm:text-sm text-white placeholder:text-slate-400 focus:outline-none"
         />
         <button
           type="button"
           onClick={() => handleSend()}
           disabled={!inputQuery.trim() || askMutation.isPending}
-          className="flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-brand-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-teal-300 px-5 py-2.5 text-xs font-bold text-slate-950 hover:brightness-110 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          {askMutation.isPending ? (
-            <RotateCw className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Send className="h-3.5 w-3.5" />
-          )}
-          Send
+          <span>Send</span>
+          <Send className="h-3.5 w-3.5" />
         </button>
       </div>
-
-      {/* Footer disclaimer */}
-      <p className="shrink-0 text-center text-[11px] text-slate-400">
-        ⚠ Prototype Clinical Intelligence Layer · All patient data is synthetic · Decision support only.
-      </p>
     </div>
   )
 }
-
