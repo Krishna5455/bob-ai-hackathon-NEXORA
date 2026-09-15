@@ -13,7 +13,7 @@
 | **Team Member** | Dhwani Patel | `22bpt022@charusat.edu.in` |
 | **Team Member** | Anjali Mestry | `22bpt016@charusat.edu.in` |
 | **Team Member** | Siddhi Patel | `22bpt039@charusat.edu.in` |
-| **Team Name** | Veno-Pump | — |
+| **Team Name** | NEXORA | — |
 | **Hackathon Track** | AI Track | — |
 
 ---
